@@ -257,9 +257,5 @@
   <modules>
     <module>jxstar-base</module>
     <module>jxstar-module</module>
-    <module>jxstar-function</module>
-    <module>jxstar-workflow</module>
-    <module>jxstar-report</module>
-	<module>jxstar-webapp</module>
   </modules>
 </project>
