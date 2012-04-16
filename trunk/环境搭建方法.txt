@@ -1,0 +1,10 @@
+	jdk版本采用1.5或更高版
+
+1、打开Ecplise，菜单：File -- New -- Java Project
+   Project Name 使用：jxstar-free
+   Use default location 使用：当前源码文件目录
+   
+2、工程Libraries直接添加jxstar.war中的lib下面的所有jar文件，
+   并添加tomcat\lib\servlet-api.jar
+   
+   
