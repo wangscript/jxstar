@@ -39,7 +39,7 @@ public class MetaData {
 		StringBuilder sbsel = new StringBuilder();
 		sbsel.append("select table_name, table_space, table_title from v_table_info ");
 		if (notExists) {
-			sbsel.append("where table_name not in (select lcase(table_name) from dm_tablecfg)");
+			sbsel.append("where table_name not in (select table_name from dm_tablecfg)");
 		}
 		
 		DaoParam param = _dao.createParam(sbsel.toString());
@@ -147,10 +147,10 @@ public class MetaData {
 	 * @return
 	 */
 	public String getDataType(String dataType) {
+		dataType = dataType.toLowerCase();
 		
-		if (dataType.equals("double") || dataType.equals("float") || 
-				dataType.equals("numeric") || dataType.equals("number") || 
-				dataType.equals("decimal")) {
+		if (dataType.equals("double") || dataType.indexOf("float") > -1 || 
+				dataType.indexOf("num") > -1 || dataType.equals("decimal")) {
 			return "number";
 		} else if (dataType.indexOf("int") > -1) {
 			return "int";

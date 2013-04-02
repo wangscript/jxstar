@@ -180,7 +180,7 @@ public class DaoParam {
 		if (type == null || type.length() == 0) 
 			return this;
 		
-		return setTypes(type.split(";"));
+		return setTypes(type.split(";", -1));//尾部的空串也需要解析
 	}
 	/**
 	 * 设置多个参数值，以;分隔，如：abc;bcd;2012-11-11
@@ -191,7 +191,7 @@ public class DaoParam {
 		if (value == null || value.length() == 0) 
 			return this;
 		
-		return setValues(value.split(";"));
+		return setValues(value.split(";", -1));//尾部的空串也需要解析
 	}
 	/**
 	 * 设置多个参数类型

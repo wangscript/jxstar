@@ -8,12 +8,12 @@ package org.jxstar.util.key;
 
 import java.util.Map;
 
-
 import org.jxstar.dao.BaseDao;
 import org.jxstar.dao.DaoParam;
 import org.jxstar.service.define.DefineDataManger;
 import org.jxstar.util.DateUtil;
 import org.jxstar.util.MapUtil;
+import org.jxstar.util.StringUtil;
 import org.jxstar.util.config.SystemVar;
 import org.jxstar.util.factory.FactoryUtil;
 import org.jxstar.util.log.Log;
@@ -38,6 +38,18 @@ import org.jxstar.util.log.Log;
  * 
  * 此方案是一个比较优秀的序列号生成方案，此类在20个并发线程10万次请求测试通过。
  * 
+ * 2012-04-30
+ * 1、当两个会话同时更新sys_tablecode表的同一条记录时，如果事务时间长，会出现死锁的情况，现在改为独立connection，
+ * 可以避免死锁的问题，但会造成在性能测试时连接数不够用；
+ * 2、如果是在集群环境下，会出现编码重复的问题，而且可能会出现死锁，现在把每次分配编码数量调整为10个，可以解决此问题，
+ * 但如果重启服务，则会出现断码的情况。
+ * 
+ * 2012-09-03
+ * 1、针对链接数不够的问题，改回不取独立connection，由于每次取10个编码才去更新最大值，不会死锁，
+ * 在性能测试时，但会存在外部事务没提交，update最大值没有提交， 会生成重复主键，重复数量都是10的倍数；
+ *    
+ * 最终结论：还是采用独立connection的方式，但取最大值时不取独立conn，在做性能测试时必须添加时间间隔50ms以上。
+ * 
  * @author TonyTan
  * @version 1.0, 2010-11-4
  */
@@ -48,7 +60,7 @@ public class CodeCreator {
 	private static BaseDao _dao = BaseDao.getInstance();
 	
 	//每次取编码数量
-	private static final int POOL_SIZE = 10000000;
+	private static final int POOL_SIZE = 10;
 	//缓存不同表的键对象
 	private static Map<String, KeyInfo> _keyList = FactoryUtil.newMap();
 	
@@ -90,23 +102,27 @@ public class CodeCreator {
 		Map<String, String> mpRule = null;
 		
 		//先检查该功能是否定义了编码规则
-		if (mpValue != null) {
-			String sql = "select code_ext, code_no, code_length from sys_coderule where fun_id = ?";
-			DaoParam sparam = _dao.createParam(sql);
-			sparam.addStringValue(funId);
-			mpRule = _dao.queryMap(sparam);
+		String sql = "select code_ext, code_no, code_length from sys_coderule where fun_id = ?";
+		DaoParam sparam = _dao.createParam(sql);
+		sparam.addStringValue(funId);
+		mpRule = _dao.queryMap(sparam);
+		
+		boolean custRule = false;
+		//如果编码扩展掩码不为空，且(为“:日期格式”或者“有当前记录值”)
+		format = MapUtil.getValue(mpRule, "code_ext");
+		if (format.length() > 0 && (format.charAt(0) == ':' || mpValue != null)) {
+			custRule = true;
 		}
 		
 		//采用功能自定义编码规则
-		if (mpValue != null && mpRule != null && !mpRule.isEmpty()) {
-			String code_ext = mpRule.get("code_ext");
+		if (custRule) {
 			String code_len = MapUtil.getValue(mpRule, "code_length", "0");
 			serialCode = mpRule.get("code_no");
 			
 			_log.showDebug("custom code rule code_ext={0} code_no={1} code_length={2}", 
-					code_ext, serialCode, code_len);
+					format, serialCode, code_len);
 			
-			extValue = getCodeExtend(code_ext, mpValue);
+			extValue = getCodeExtend(format, mpValue);
 			_log.showDebug("custom code rule extvalue={0}", extValue);
 			
 			//处理编码长度，如果扩展值+序列号的长度不够，则添加序列号的长度
@@ -207,6 +223,11 @@ public class CodeCreator {
 			retVal = DateUtil.getDateValue(format.substring(1));
 		} else {
 			retVal = MapUtil.getValue(mpValue, format);
+			//如果没有取到值，则采用无表名的字段取值
+			if (retVal.length() == 0) {
+				String field = StringUtil.getNoTableCol(format);
+				retVal = MapUtil.getValue(mpValue, field);
+			}
 		}
 		
 		return retVal;
@@ -242,8 +263,7 @@ public class CodeCreator {
 		}
 		
 		//取新的序号
-		int serial = keyInfo.getNextKey(); //getNextKey(tableName, extValue);
-		//int serial = getNextKey(tableName, extValue);
+		int serial = keyInfo.getNextKey();
 		String key = Integer.toString(serial);
 		
 		//如果掩码长度小于2，则直接返回流水号
@@ -288,20 +308,11 @@ public class CodeCreator {
 			if (nextKey > keyMax) {
 				retrieveFromDB();
 			}
-			
-			//每次取新号时，更新当前最大值；采用累加1的方式可以解决多线程多事务累加不丢失的问题。
-			String usql = "update sys_tablecode set max_value = max_value + 1 where table_name = ? and code_ext = ?";
-			DaoParam uparam = _dao.createParam(usql);
-			uparam.addStringValue(keyName);
-			uparam.addStringValue(keyExtend);
-			if (!_dao.update(uparam)) {
-				_log.showWarn("get next code no update error!! tablename={0} extvalue={1}!!", keyName, keyExtend);
-			}
 
 			return nextKey++;
 		}
 		
-		private void retrieveFromDB() {
+		private synchronized void retrieveFromDB() {
 			//从数据库中取上次分配的最大值
 			int dbmax = 0;
 			String ssql = "select max_value from sys_tablecode where table_name = ? and code_ext = ?";
@@ -312,10 +323,23 @@ public class CodeCreator {
 			
 			if (!mpMax.isEmpty()) {
 				dbmax = Integer.parseInt(mpMax.get("max_value"));
+				
+				//每次取新号时，更新当前最大值；采用累加poolSize的方式可以解决多线程多事务累加不丢失的问题。
+				String usql = "update sys_tablecode set max_value = max_value + ? where table_name = ? and code_ext = ?";
+				DaoParam uparam = _dao.createParam(usql);
+				uparam.setUseTransaction(false);
+				uparam.addIntValue(Integer.toString(poolSize));
+				uparam.addStringValue(keyName);
+				uparam.addStringValue(keyExtend);
+				if (!_dao.update(uparam)) {
+					_log.showWarn("get next code no update error!! tablename={0} extvalue={1}!!", keyName, keyExtend);
+				}
 			} else {
 				//新建一条记录
-				String usql = "insert into sys_tablecode(max_value, table_name, code_ext) values(0, ?, ?)";
+				String usql = "insert into sys_tablecode(max_value, table_name, code_ext) values(?, ?, ?)";
 				DaoParam uparam = _dao.createParam(usql);
+				uparam.setUseTransaction(false);
+				uparam.addIntValue(Integer.toString(poolSize));
 				uparam.addStringValue(keyName);
 				uparam.addStringValue(keyExtend);
 				if (!_dao.update(uparam)) {

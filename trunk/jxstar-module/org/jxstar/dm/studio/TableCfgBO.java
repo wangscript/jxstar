@@ -593,9 +593,9 @@ public class TableCfgBO extends BusinessObject {
 	private boolean insertKeyField(String tableId, String fieldName, String userId) {
 		StringBuilder sbInsert = new StringBuilder();
 		sbInsert.append("insert into dm_fieldcfg(");
-		sbInsert.append("field_id, field_name, field_title, data_type, data_size, data_scale, default_value, ");
+		sbInsert.append("field_id, field_name, field_title, data_type, data_size, ");
 		sbInsert.append("nullable, field_type, field_index, table_id, state, add_userid, add_date) ");
-		sbInsert.append("values(?, ?, '主键', 'varchar', 25, 0, '', ");
+		sbInsert.append("values(?, ?, '主键', 'varchar', 25, ");
 		sbInsert.append("1, 0, 500, ?, 1, ?, ?)");
 		
 		DaoParam param = _dao.createParam(sbInsert.toString());

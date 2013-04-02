@@ -16,6 +16,7 @@ import org.jxstar.service.BusinessObject;
 import org.jxstar.service.util.ServiceUtil;
 import org.jxstar.util.ArrayUtil;
 import org.jxstar.util.DateUtil;
+import org.jxstar.util.MapUtil;
 import org.jxstar.util.key.KeyCreator;
 import org.jxstar.util.resource.JsMessage;
 
@@ -40,19 +41,25 @@ public class ConditionBO extends BusinessObject {
 		//取查询条件名称
 		String sel_funid = requestContext.getRequestValue("selfunid");
 		String is_share = requestContext.getRequestValue("is_share");
+		String queryid = requestContext.getRequestValue("query_id");
 		String query_name = requestContext.getRequestValue("query_name");
 		_log.showDebug("=======is_share=" + is_share + ";query_name=" + query_name);
 		
 		//新增的查询条件
-		String queryid = saveQuery(sel_funid, is_share, query_name, userInfo);
 		if (queryid.length() == 0) {
-			//"保存查询条件名称失败！"
-			setMessage(JsMessage.getValue("conditionbo.saveerror"));
-			return _returnFaild;
+			queryid = saveQuery(sel_funid, is_share, query_name, userInfo);
+			if (queryid.length() == 0) {
+				//"保存查询条件名称失败！"
+				setMessage(JsMessage.getValue("conditionbo.saveerror"));
+				return _returnFaild;
+			}
+		} else {
+			//先删除明细，下面会重新保存
+			deleteQueryDet(queryid);
 		}
 		
 		//取查询条件明细
-		String[] gucols = new String[]{"left_brack", "colcode", "condtype", "cond_value", "right_brack", "andor", "coltype"};
+		String[] gucols = new String[]{"left_brack", "colcode", "condtype", "cond_value", "right_brack", "andor", "coltype", "col_no"};
 		List<Map<String,String>> lsquery = ServiceUtil.getRequestMaps(
 				requestContext, gucols);
 		
@@ -63,7 +70,33 @@ public class ConditionBO extends BusinessObject {
 		}
 		
 		//返回新建的查询条件
-		setReturnData("{query_id:'"+queryid+"'}");
+		setReturnData("{query_id:'"+queryid+"', is_share:'"+is_share+"', query_name:'"+query_name+"'}");
+		
+		return _returnSuccess;
+	}
+	
+	/**
+	 * 保存查询方案
+	 * @param requestContext
+	 * @param curUserId
+	 * @return
+	 */
+	public String saveCase(RequestContext requestContext, String curUserId) {
+		String[] gucols = new String[]{"query_name", "is_share", "query_id"};
+		List<Map<String,String>> lsquery = ServiceUtil.getRequestMaps(
+				requestContext, gucols);
+		
+		String sql = "update sys_query set query_name = ?, is_share = ?, modify_userid = ?, modify_date = ? where query_id = ?";
+		
+		for (Map<String,String> mpQuery : lsquery) {
+			DaoParam param = _dao.createParam(sql);
+			param.addStringValue(MapUtil.getValue(mpQuery, "query_name"));
+			param.addStringValue(MapUtil.getValue(mpQuery, "is_share"));
+			param.addStringValue(curUserId);
+			param.addDateValue(DateUtil.getTodaySec());
+			param.addStringValue(MapUtil.getValue(mpQuery, "query_id"));
+			_dao.update(param);
+		}
 		
 		return _returnSuccess;
 	}
@@ -130,8 +163,8 @@ public class ConditionBO extends BusinessObject {
 	 * @return
 	 */
 	public String queryCond(String queryid) {
-		String sql = "select left_brack, colcode, condtype, cond_value, right_brack, andor, coltype " +
-				 	 "from sys_query_det where query_id = ?";
+		String sql = "select left_brack, colcode, condtype, cond_value, right_brack, andor, coltype, col_no " +
+				 	 "from sys_query_det where query_id = ? order by col_no";
 		
 		DaoParam param = new DaoParam();
 		param.setSql(sql);
@@ -188,11 +221,17 @@ public class ConditionBO extends BusinessObject {
 	 */
 	private boolean saveQueryDet(String queryid, List<Map<String,String>> lsquery) {
 		String isql = "insert into sys_query_det(" +
-					  "query_detid, query_id, left_brack, colcode, condtype, cond_value, right_brack, andor, coltype) " +
-					  "values(?, ?, ?, ?, ?, ?, ?, ?, ?)";
+					  "query_detid, query_id, left_brack, colcode, condtype, cond_value, right_brack, andor, coltype, col_no) " +
+					  "values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 		
 		for (int i = 0; i < lsquery.size(); i++) {
 			Map<String,String> mp = lsquery.get(i);
+			
+			//如果没有序号，自动构建序号
+			String colno = mp.get("col_no");
+			if (colno.length() == 0 || colno.equals("0")) {
+				colno = Integer.toString((i+1)*2);
+			}
 			
 			String detid = _keyCreator.createKey("sys_query_det");
 			DaoParam param = _dao.createParam(isql);
@@ -205,10 +244,24 @@ public class ConditionBO extends BusinessObject {
 			param.addStringValue(mp.get("right_brack"));
 			param.addStringValue(mp.get("andor"));
 			param.addStringValue(mp.get("coltype"));
+			param.addStringValue(colno);
 			
 			if (!_dao.update(param)) return false;
 		}
 		
 		return true;
+	}
+	
+	/**
+	 * 删除查询条件明细
+	 * @param queryid
+	 * @return
+	 */
+	private boolean deleteQueryDet(String queryid) {
+		String sql = "delete from sys_query_det where query_id = ?";
+		DaoParam param = _dao.createParam(sql);
+		param.addStringValue(queryid);
+		
+		return _dao.update(param); 
 	}
 }

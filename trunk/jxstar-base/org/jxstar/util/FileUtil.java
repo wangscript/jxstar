@@ -158,45 +158,6 @@ public class FileUtil {
 		}
 		
 		return ret;
-		/*
-		StringBuilder sb = new StringBuilder();
-		FileInputStream in = null;
-		int cnt = 0;
-		try {
-			in = new FileInputStream(new File(fileName));
-			
-			//第一次读写标志
-			int start = 0;
-			
-			byte[] b = new byte[1024];
-			while ((cnt = in.read(b)) > 0) {
-				//过滤掉UTF-8文件中BOM标志
-				if (start == 0 && cnt > 3 && charset.equalsIgnoreCase("UTF-8")) {
-					start++;
-					if ((b[0] == (byte)0xEF) && (b[1] == (byte)0xBB) && (b[2] == (byte)0xBF)) {
-						sb.append(new String(b, 3, cnt-3, charset));
-						continue;
-					}
-				}
-				
-				sb.append(new String(b, 0, cnt, charset));
-			}
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} catch (IOException ex) {
-			ex.printStackTrace();
-		} finally {
-			if (in != null) {
-				try {
-					in.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-				in = null;
-			}
-		}
-		
-		return sb.toString();*/
 	}
 	
 	/**

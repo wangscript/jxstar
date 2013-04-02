@@ -24,6 +24,8 @@ import org.jxstar.util.log.Log;
  * 
  * 主键序号生成设计思想与CodeCreator编码序号相同。
  * 
+ * 为避免在集群环境下造成主键重复与死锁的情况，改为每次更新POOL_SIZE值。
+ * 
  * @author TonyTan
  * @version 1.0, 2010-11-4
  */
@@ -34,7 +36,7 @@ public class KeyCreator {
 	private static BaseDao _dao = BaseDao.getInstance();
 
 	//每次取主键数量
-	private static final int POOL_SIZE = 10000000;
+	private static final int POOL_SIZE = 50;
 	//缓存不同表的键对象
 	private static Map<String, KeyInfo> _keyList = FactoryUtil.newMap();
 	
@@ -101,6 +103,9 @@ public class KeyCreator {
 				return "9999";
 			}
 		}
+		if (maxVal.length() > 4) {
+			maxVal = maxVal.substring(maxVal.length()-4, maxVal.length());
+		}
 		maxVal = "0000" + (Long.parseLong(maxVal) + 1);
 		String treeID = parentID + maxVal.substring(maxVal.length()-4, maxVal.length());
 		
@@ -158,6 +163,9 @@ public class KeyCreator {
 	
 	/**
 	 * 主键唯一序号生成类
+	 * 因为系统采用每次取值后就更新最大值的方式，如果两个会话的同一个表名都同时更新
+	 * sys_tableid的值，会造成死锁，所以添加uparam.setUseTransaction(false);取独立
+	 * 的连接更新最大，可以避免sys_tableid表死锁。
 	 * 
 	 * @author TonyTan
 	 * @version 1.0, 2010-11-2
@@ -181,18 +189,10 @@ public class KeyCreator {
 				retrieveFromDB();
 			}
 			
-			//每次取新号时，更新当前最大值；采用累加1的方式可以解决多线程多事务累加不丢失的问题。
-			String usql = "update sys_tableid set max_value = max_value + 1 where table_name = ?";
-			DaoParam uparam = _dao.createParam(usql);
-			uparam.addStringValue(keyName);
-			if (!_dao.update(uparam)) {
-				_log.showWarn("get next code no update error!! tablename={0}!!", keyName);
-			}
-			
 			return nextKey++;
 		}
 		
-		private void retrieveFromDB() {
+		private synchronized void retrieveFromDB() {
 			//从数据库中取上次分配的最大值
 			int dbmax = 0;
 			String ssql = "select max_value from sys_tableid where table_name = ?";
@@ -203,10 +203,22 @@ public class KeyCreator {
 			
 			if (!mpMax.isEmpty()) {
 				dbmax = Integer.parseInt(mpMax.get("max_value"));
+				
+				//每次取新号时，更新当前最大值；采用累加poolSize的方式可以解决多线程多事务累加不丢失的问题。
+				String usql = "update sys_tableid set max_value = max_value + ? where table_name = ?";
+				DaoParam uparam = _dao.createParam(usql);
+				uparam.setUseTransaction(false);
+				uparam.addIntValue(Integer.toString(poolSize));
+				uparam.addStringValue(keyName);
+				if (!_dao.update(uparam)) {
+					_log.showWarn("get next code no update error!! tablename={0}!!", keyName);
+				}
 			} else {
 				//新建一条记录
-				String usql = "insert into sys_tableid(max_value, table_name) values(0, ?)";
+				String usql = "insert into sys_tableid(max_value, table_name) values(?, ?)";
 				DaoParam uparam = _dao.createParam(usql);
+				uparam.setUseTransaction(false);
+				uparam.addIntValue(Integer.toString(poolSize));
 				uparam.addStringValue(keyName);
 				if (!_dao.update(uparam)) {
 					_log.showWarn("get next keyid no update error!! tablename={0}!!", keyName);

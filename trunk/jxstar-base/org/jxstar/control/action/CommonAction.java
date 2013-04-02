@@ -12,8 +12,8 @@ import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-
 import org.jxstar.service.control.ServiceController;
+import org.jxstar.util.MapUtil;
 import org.jxstar.util.factory.SystemFactory;
 import org.jxstar.util.resource.JsMessage;
 import org.jxstar.util.resource.JsParam;
@@ -102,9 +102,17 @@ public class CommonAction extends Action {
 				//判断当前用户是否有效
 				String reqUserId = requestContext.getRequestValue("user_id");
 				String userId = mpUser.get("user_id");
-				if (!reqUserId.equals(userId)) {
+				String reqUserCode = requestContext.getRequestValue("user_code");
+				String userCode = mpUser.get("user_code");
+				if (!reqUserId.equals(userId) && !reqUserCode.equals(userCode)) {
 					responseContext.setMessage(JsMessage.getValue("commonaction.nouser"));
 					return responseContext;
+				}
+
+				//如果请求参数中没有用户ID，则可以从会话中取用户ID
+				if (reqUserId.length() == 0) {
+					reqUserId = MapUtil.getValue(mpUser, "user_id");
+					requestContext.setRequestValue("user_id", reqUserId);
 				}
 				
 				//把当前用户信息存到上下文中
@@ -127,6 +135,8 @@ public class CommonAction extends Action {
 				message = JsMessage.getValue("commonaction.faild");
 			}
 			responseContext.setMessage(message);
+			responseContext.setResponseData(requestContext.getReturnData());
+			
 			return responseContext;
 		}
 		

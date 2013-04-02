@@ -9,11 +9,11 @@ package org.jxstar.service.define;
 import java.util.List;
 import java.util.Map;
 
-
 import org.jxstar.dao.BaseDao;
 import org.jxstar.dao.DaoParam;
 import org.jxstar.util.MapUtil;
 import org.jxstar.util.factory.FactoryUtil;
+import org.jxstar.util.log.Log;
 
 /**
  * 读取组件配置信息的工具对象.
@@ -22,7 +22,7 @@ import org.jxstar.util.factory.FactoryUtil;
  * @version 1.0, 2008-4-6
  */
 public class EventDefine {
-	//private static Log _log = Log.getInstance();
+	private static Log _log = Log.getInstance();
 	//数据库访问对象
 	private static BaseDao _dao = BaseDao.getInstance();
 	//系统事件功能ID
@@ -63,7 +63,7 @@ public class EventDefine {
 			//自定义事件“之后”的扩展类
 			lsRet.addAll(getModule(lsCutom, "1"));
 		}
-		//_log.showDebug("query event module is " + lsRet.toString());
+		_log.showDebug("query event module is " + lsRet.toString());
 
 		return lsRet;
 	}
@@ -133,6 +133,7 @@ public class EventDefine {
 				lsRet.addAll(getExtModule(checkFunId, "audit", "1"));
 			}
 		}
+		_log.showDebug("query audit event module is " + lsRet.toString());
 
 		return lsRet;
 	}
@@ -162,9 +163,12 @@ public class EventDefine {
 	 */
 	private static List<Map<String, String>> getCustomModule(
 			String funID, String eventCode, String position) {
+		//是否系统事件注册类
+		String issys = funID.equals(SYSEVENT) ? "1" : "0";
+		
 		StringBuilder sbsql = new StringBuilder();
-			sbsql.append("select invoke_id, module_name, method_name, position ");
-			sbsql.append("from fun_event_invoke where ");
+			sbsql.append("select invoke_id, module_name, method_name, position, '"+ issys +"' as issys ");
+			sbsql.append("from fun_event_invoke where (status = '0' or status is null) and ");
 			sbsql.append("exists (select * from fun_event where ");
 			sbsql.append("fun_event.event_id = fun_event_invoke.event_id ");
 			sbsql.append("and fun_id = ? and event_code = ?) ");
@@ -197,8 +201,8 @@ public class EventDefine {
 	private static List<Map<String, String>> getExtModule(
 			String funID, String eventCode, String position) {
 		StringBuilder sbsql = new StringBuilder();
-			sbsql.append("select invoke_id, module_name, method_name, position ");
-			sbsql.append("from fun_event_invoke where ");
+			sbsql.append("select invoke_id, module_name, method_name, position, '0' as issys ");
+			sbsql.append("from fun_event_invoke where (status = '0' or status is null) and ");
 			sbsql.append("exists (select * from fun_event where ");
 			sbsql.append("fun_event.event_id = fun_event_invoke.event_id and fun_id = ?) ");
 			

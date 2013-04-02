@@ -8,11 +8,8 @@ package org.jxstar.util.log;
 
 import java.text.MessageFormat;
 
-import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
-
-import org.jxstar.util.DateUtil;
 import org.jxstar.util.FileUtil;
 
 /**
@@ -76,9 +73,7 @@ public class Log {
 	 * @param sInfo
 	 */
 	public void showDebug(String sInfo) {
-		if (_logger.getLevel().toInt() == Level.DEBUG_INT) {
-			print(sInfo);
-		}
+		_logger.debug(sInfo);
 	}
 	
 	/**
@@ -87,18 +82,8 @@ public class Log {
 	 * @param params
 	 */
 	public void showDebug(String sInfo, Object... params) {
-		if (_logger.getLevel().toInt() == Level.DEBUG_INT) {
-			sInfo = MessageFormat.format(sInfo, params);
-			print(sInfo);
-		}
-	}
-	
-	/**
-	 * 输出信息到控制台。
-	 * @param sInfo
-	 */
-	private void print(String sInfo) {
-		System.out.println(DateUtil.getTodaySec() + " jxstar: " + sInfo);
+		sInfo = MessageFormat.format(sInfo, params);
+		_logger.debug(sInfo);
 	}
 	
 	/**
@@ -106,8 +91,7 @@ public class Log {
 	 * @param sInfo
 	 */
 	public void showInfo(String sInfo) {
-		showDebug(sInfo);
-		_logger.info("jxstar: " + sInfo);
+		_logger.info(sInfo);
 	}	
 	
 	/**
@@ -115,9 +99,8 @@ public class Log {
 	 * @param sInfo
 	 */
 	public void showWarn(String sInfo) {
-		sInfo = traceMethod() + "\n警告: " + sInfo;
-		showDebug(sInfo);
-		_logger.warn("jxstar: " + sInfo);
+		sInfo = traceMethod() + "\nwarn: " + sInfo;
+		_logger.warn(sInfo);
 	}
 	
 	/**
@@ -127,9 +110,7 @@ public class Log {
 	 */
 	public void showWarn(String sInfo, Object... params) {
 		sInfo = MessageFormat.format(sInfo, params);
-		sInfo = traceMethod() + "\n警告: " + sInfo;
-		showDebug(sInfo);
-		_logger.warn("jxstar: " + sInfo);
+		showWarn(sInfo);
 	}
 	
 	/**
@@ -137,9 +118,7 @@ public class Log {
 	 * @param sInfo
 	 */
 	public void showError(String sInfo) {
-		sInfo = traceMethod() + "\n异常: " + sInfo;
-		showDebug(sInfo);
-		_logger.error("jxstar: " + sInfo);
+		_logger.error(traceMethod() + "\nerror: " + sInfo);
 	}
 	
 	/**
@@ -149,9 +128,7 @@ public class Log {
 	 */
 	public void showError(String sInfo, Object... params) {
 		sInfo = MessageFormat.format(sInfo, params);
-		sInfo = traceMethod() + "\n异常: " + sInfo;
-		showDebug(sInfo);
-		_logger.error("jxstar: " + sInfo);
+		showError(sInfo);
 	}
 	
 	/**
@@ -160,8 +137,8 @@ public class Log {
 	 * @param e			-- 异常对象
 	 */
 	public void showError(String sInfo, Throwable e) {
-		_logger.error("jxstar: " + traceMethod() + "\n异常: " + sInfo, e);
-		e.printStackTrace();
+		sInfo = traceMethod() + "\nerror: " + sInfo;
+		_logger.error(sInfo, e);
 	}
 	
 	/**
@@ -169,8 +146,7 @@ public class Log {
 	 * @param e -- 异常对象
 	 */
 	public void showError(Throwable e) {
-		_logger.error("jxstar: " + traceMethod(), e);
-		e.printStackTrace();
+		_logger.error(traceMethod(), e);
 	}
 	
 	/**

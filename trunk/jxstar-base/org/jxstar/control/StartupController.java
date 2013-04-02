@@ -15,6 +15,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.jxstar.service.studio.LoginLogBO;
+import org.jxstar.service.util.ClusterUtil;
 import org.jxstar.task.load.SystemTaskLoader;
 import org.jxstar.util.config.SystemVar;
 import org.jxstar.util.log.Log;
@@ -85,7 +86,9 @@ public class StartupController extends HttpServlet {
 		//初始化系统对象
 		SystemInitUtil.initSystem(realPath + "/WEB-INF/classes/", configFile, isReload);
 		
-		//系统重启其删除所有会话用户
-		(new LoginLogBO()).delLoginUser();
+		//系统重启其删除所有会话用户，如果在集群环境，则通过cleanUp方法完成
+		if (!ClusterUtil.isCluster()) {
+			(new LoginLogBO()).delLoginUser();
+		}
 	}
 }

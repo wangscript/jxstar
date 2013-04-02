@@ -16,6 +16,7 @@ import org.jxstar.service.BoException;
 import org.jxstar.service.BusinessObject;
 import org.jxstar.service.define.FunDefineDao;
 import org.jxstar.service.util.WhereUtil;
+import org.jxstar.util.StringUtil;
 import org.jxstar.util.resource.JsMessage;
 
 /**
@@ -76,7 +77,7 @@ public class GroupStatBO extends BusinessObject {
 	 * @return
 	 * @throws BoException
 	 */
-	public DaoParam statDaoParam(RequestContext request) throws BoException {
+	private DaoParam statDaoParam(RequestContext request) throws BoException {
 		String funid = request.getRequestValue("query_funid");
 		String userid = request.getRequestValue("user_id");
 		String wheresql = request.getRequestValue("where_sql");
@@ -140,12 +141,12 @@ public class GroupStatBO extends BusinessObject {
 	 * @param numField -- 统计字段串
 	 * @return
 	 */
-	public String[] getFieldCodes(String charField, String numField) {
-		String fields = charField + ",";
+	private String[] getFieldCodes(String charField, String numField) {
+		String fields = delTable(charField);
 		if (numField == null || numField.length() == 0) {
 			fields += RECORDNUM;
 		} else {
-			fields += numField + "," + RECORDNUM;
+			fields += delTable(numField) + RECORDNUM;
 		}
 		
 		return fields.split(",");
@@ -157,6 +158,7 @@ public class GroupStatBO extends BusinessObject {
 	 * @param numField -- 统计字段标题串
 	 * @return
 	 */
+	/*
 	public String[] getFieldTitles(String charField, String numField) {
 		String fields = charField + ",";
 		if (numField == null || numField.length() == 0) {
@@ -166,7 +168,7 @@ public class GroupStatBO extends BusinessObject {
 		}
 		
 		return fields.split(",");
-	}	
+	}*/
 	
 	/**
 	 * 给统计字段添加求和关键字
@@ -182,9 +184,25 @@ public class GroupStatBO extends BusinessObject {
 		
 		StringBuilder sbfield = new StringBuilder();
 		for (int i = 0, n = fields.length; i < n; i++) {
-			sbfield.append("sum(" + fields[i] + ") as "+ fields[i] +",");
+			//字段名中添加了表名，防止多表列同名
+			String colname = StringUtil.getNoTableCol(fields[i]);
+			sbfield.append("sum(" + fields[i] + ") as "+ colname +",");
 		}
 		sbfield.append("count(*) as "+ RECORDNUM);
+		
+		return sbfield.toString();
+	}
+	
+	//去掉字段中的表名
+	private String delTable(String fields) {
+		if (fields == null || fields.length() == 0) return "";
+		
+		String[] fs = fields.split(",");
+		StringBuilder sbfield = new StringBuilder();
+		for (String field : fs) {
+			String colname = StringUtil.getNoTableCol(field);
+			sbfield.append(colname).append(",");
+		}
 		
 		return sbfield.toString();
 	}

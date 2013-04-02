@@ -8,13 +8,11 @@ package org.jxstar.dao.util;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.sql.Blob;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 
 import org.jxstar.dao.DaoUtil;
 import org.jxstar.dao.transaction.TransactionException;
@@ -96,12 +94,12 @@ public class BigFieldUtil {
 				bos.write(buf, 0, len);
 			}
 			
+			//如果不执行提交方法，在非事务环境中会存在连接泄露
+			tranObj.commit();
+			
 			//目标流转为字符串
 			return new String(bos.toByteArray(), "utf-8");
-		} catch (SQLException e) {
-			DaoUtil.closeTranObj(tranObj);
-			_log.showError(e);
-		} catch (IOException e) {
+		} catch (Exception e) {
 			DaoUtil.closeTranObj(tranObj);
 			_log.showError(e);
 		} finally {

@@ -54,15 +54,46 @@ public class StringUtil {
 	}
 	
 	/**
-	 * 转换字符串中的特殊符号，适用JSON描述，已处理了：\r\n ' 符号。
+	 * 判断一个字符串是否是数字
+	 * @param str
+	 * @return
+	 */
+	public static boolean isNum(String str){
+		return str.matches("^[-+]?(([0-9]+)([.]([0-9]+))?|([.]([0-9]+))?)$");
+	}
+
+	/**
+	 * 转换字符串中的特殊符号，适用JSON描述，前三个用得比较少，忽略。
+	 *      "\b": '\\b',
+            "\t": '\\t',
+            "\f": '\\f',
+            "\n": '\\n',
+            "\r": '\\r',
+            '"' : '\\"',
+            "\\": '\\\\'
 	 * @param strVal -- 需要处理的值
 	 * @return
 	 */
 	public static String strForJson(String strVal) {
-		strVal = strVal.replaceAll("\r", "\\\\r");
-		strVal = strVal.replaceAll("\n", "\\\\n");
-		strVal = strVal.replaceAll("'", "\\\\'");
-		return strVal;
+		StringBuilder sbstr = new StringBuilder();
+		for (int i = 0, n = strVal.length(); i < n; i++) {
+			char ch = strVal.charAt(i);
+			if (ch == '\\') {
+				sbstr.append("\\\\");
+			} else if (ch == '\r') {
+				sbstr.append("\\r");
+			} else if (ch == '\n') {
+				sbstr.append("\\n");
+			} else if (ch == '\'') {
+				sbstr.append("\\'");
+			} else if (ch == '"') {
+				sbstr.append("\\'");
+			} else {
+				sbstr.append(ch);
+			}
+		}
+		
+		return sbstr.toString();
 	}
 	
 	/**

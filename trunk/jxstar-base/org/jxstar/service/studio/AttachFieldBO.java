@@ -123,7 +123,10 @@ public class AttachFieldBO extends BusinessObject {
 		}
 		
 		//更新业务表中附件字段的值，忽略错误信息
-		updateFieldValue(requestContext);
+		if (!updateFieldValue(requestContext)) {
+			setMessage(JsMessage.getValue("systembo.attachbo.upfield"));
+			return _returnFaild;
+		}
 
 		return _returnSuccess;
 	}

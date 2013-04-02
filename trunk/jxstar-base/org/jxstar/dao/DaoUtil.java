@@ -6,6 +6,7 @@
  */
 package org.jxstar.dao;
 
+import java.sql.CallableStatement;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -18,6 +19,7 @@ import java.util.Map;
 
 import org.jxstar.dao.transaction.TransactionException;
 import org.jxstar.dao.transaction.TransactionObject;
+import org.jxstar.util.ArrayUtil;
 import org.jxstar.util.StringUtil;
 import org.jxstar.util.config.SystemVar;
 import org.jxstar.util.factory.FactoryUtil;
@@ -35,8 +37,7 @@ public class DaoUtil {
 	/**
 	 * 获取结果集中的字段名。
 	 * 
-	 * @param rs --
-	 *            结果集
+	 * @param rs -- 结果集
 	 * @return List
 	 * @throws SQLException
 	 */
@@ -54,7 +55,7 @@ public class DaoUtil {
 			int columnNum = rsmd.getColumnCount();
 
 			for (int i = 1; i <= columnNum; i++) {
-				lsRet.add(rsmd.getColumnName(i).toLowerCase());
+				lsRet.add(rsmd.getColumnLabel(i).toLowerCase());
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -70,12 +71,12 @@ public class DaoUtil {
 	/**
 	 * ResultSet 转换为 List。
 	 * 
-	 * @param rs --
-	 *            结果集
+	 * @param rs -- 结果集
+	 * @param recNum -- 控制取recNum条记录，如果<=0，则不限制数量
 	 * @return List
 	 * @throws SQLException
 	 */
-	public static List<Map<String,String>> getRsToList(ResultSet rs) throws SQLException {
+	public static List<Map<String,String>> getRsToList(ResultSet rs, int recNum) throws SQLException {
 		if (rs == null) {
 			throw new SQLException("getRsToList(): ResultSet param is null! ");
 		}
@@ -87,13 +88,26 @@ public class DaoUtil {
 			// 取得结果集的单元信息
 			ResultSetMetaData rsmd = rs.getMetaData();
 			int columnNum = rsmd.getColumnCount();
+			//允许查询输出最多数据条数
+			String sMaxNum = SystemVar.getValue("db.query.maxnum", "50000");
+			int count = 0, maxNum = Integer.parseInt(sMaxNum);
 
 			// 列数为0,返回空的ArrayList
 			String strVal = null, strCol = null;
 			while (rs.next()) {
+				count++;
+				//用于控制取recNum条记录
+				if (recNum > 0 && count > recNum) break;
+				
+				if (count > maxNum) {
+					_log.showError("query data num more max [{0}]!!", maxNum);
+					break;
+				}
+				
 				map = FactoryUtil.newMap();
 				for (int i = 1; i <= columnNum; i++) {
-					strCol = rsmd.getColumnName(i).toLowerCase();
+					//由getColumnName改为getColumnLabel，DB2中必须用它取别名，其它数据库两者的值相同
+					strCol = rsmd.getColumnLabel(i).toLowerCase();
 					strVal = rs.getString(strCol);
 					if (strVal == null) strVal = "";
 					
@@ -150,12 +164,9 @@ public class DaoUtil {
 	/**
 	 * 给预编译语句赋值。
 	 * 
-	 * @param astrVal --
-	 *            参数值
-	 * @param astrType --
-	 *            参数类型
-	 * @param aps --
-	 *            预编译语句
+	 * @param astrVal -- 参数值
+	 * @param astrType -- 参数类型
+	 * @param aps -- 预编译语句
 	 * @return PreparedStatement
 	 */
 	public static PreparedStatement setPreStmParams(List<String> lsValue, 
@@ -164,12 +175,10 @@ public class DaoUtil {
 			throw new SQLException("setPreStmParams(): astrVal param is null! ");
 		}
 		if (lsType == null) {
-			throw new SQLException(
-					"setPreStmParams(): astrType param is null! ");
+			throw new SQLException("setPreStmParams(): astrType param is null! ");
 		}
 		if (aps == null) {
-			throw new SQLException(
-					"setPreStmParams(): PreparedStatement param is null! ");
+			throw new SQLException("setPreStmParams(): PreparedStatement param is null! ");
 		}
 
 		try {
@@ -229,10 +238,73 @@ public class DaoUtil {
 	}	
 	
 	/**
+	 * 注册输出参数。
+	 * @param start -- 输入参数的格式，从1开始
+	 * @param lsOutType -- 输出参数类型
+	 * @param aps -- 预编译语句
+	 * @return
+	 */
+	public static CallableStatement setStmOutParams(int start, List<Integer> lsOutType, 
+			CallableStatement aps) throws SQLException {
+		if (lsOutType == null) {
+			throw new SQLException("setOutStmParams(): lsOutType param is null! ");
+		}
+		if (aps == null) {
+			throw new SQLException("setOutStmParams(): CallableStatement param is null! ");
+		}
+
+		try {
+			for (int i = 1, n = lsOutType.size(); i <= n; i++) {
+				int itype = lsOutType.get(i - 1);
+				
+				aps.registerOutParameter(start+i, itype);
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+			throw new SQLException("setOutStmParams(): " + e.toString());
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new SQLException("setOutStmParams(): " + e.toString());
+		}
+		
+		return aps;
+	}
+	
+	/**
+	 * 注册输出参数。
+	 * @param start -- 输入参数的格式，从1开始
+	 * @param typenum -- 输出参数个数
+	 * @param aps -- 预编译语句
+	 * @param -- 把输出参数的值设置到参数对象中
+	 * @return
+	 */
+	public static void getStmOutParams(int start, int typenum,
+			CallableStatement aps, CallParam param) throws SQLException {
+		if (aps == null) {
+			throw new SQLException("setOutStmParams(): CallableStatement param is null! ");
+		}
+
+		try {
+			for (int i = 1; i <= typenum; i++) {
+				int index = start + i;
+				String value = aps.getString(index);
+				if (value == null) value = "";
+				
+				param.setOutValue(value);
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+			throw new SQLException("setOutStmParams(): " + e.toString());
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new SQLException("setOutStmParams(): " + e.toString());
+		}
+	}
+	
+	/**
 	 * ResultSet 转换为 JSON。
 	 * 
-	 * @param rs --
-	 *            结果集
+	 * @param rs -- 结果集
 	 * @return String
 	 * @throws SQLException
 	 */
@@ -245,6 +317,10 @@ public class DaoUtil {
 			throw new SQLException("getRsToJson(): astrCol param is null! ");
 		}
 		if (astrCol.length == 0) return "";
+		
+		//允许查询输出最多数据条数
+		String sMaxNum = SystemVar.getValue("db.query.maxnum", "50000");
+		int count = 0, maxNum = Integer.parseInt(sMaxNum);
 
 		//取字段的数据类型值 
 		ResultSetMetaData rsmd = rs.getMetaData();
@@ -253,6 +329,12 @@ public class DaoUtil {
 		try {
 			String strVal = null;
 			while (rs.next()) {
+				count++;
+				if (count > maxNum) {
+					_log.showError("query data num more max [{0}]!!", maxNum);
+					break;
+				}
+
 				sbJson.append("{");
 				//组织一行数据
 				for (int i = 1, n = astrCol.length; i <= n; i++) {
@@ -368,6 +450,32 @@ public class DaoUtil {
 			_log.showWarn(sbError.toString());
 		}
 	}	
+	
+	/**
+	 * 输出所有SQL与参数到文件中，需要设置参数：db.show.sql=1
+	 * @param param
+	 * @param type -- 操作类型：1查询，2更新 ，3所有
+	 */
+	public static void debugSQL(DaoParam param, String type) {
+		if (param == null) return;
+		
+		String isShow = SystemVar.getValue("db.show.sql", "0");
+		if (isShow == null || isShow.length() == 0 || isShow.equals("0")) return;
+		boolean valid =
+			(isShow.equals("3") || 						//显示所有SQL
+			 isShow.equals("1") && type.equals("1") ||	//只显示查询SQL
+			 isShow.equals("2") && type.equals("2"));	//只显示更新SQL
+		if (!valid) return;
+		
+		String sql = param.getSql();
+		String[] vals = ArrayUtil.listToArray(param.getValue());
+		String value =  ArrayUtil.arrayToString(vals);
+		
+		StringBuilder sb = new StringBuilder();
+		sb.append("ThreadId=").append(Thread.currentThread().hashCode()).append(";\nSQL=");
+		sb.append(sql).append(";\nPARAM=").append(value).append("\n");
+		_log.showError(sb.toString());
+	}
 	
 	/**
 	 * 显示异常信息。

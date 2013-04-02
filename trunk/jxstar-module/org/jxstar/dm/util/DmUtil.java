@@ -7,15 +7,15 @@
 package org.jxstar.dm.util;
 
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-
+import org.jxstar.dao.BaseDao;
+import org.jxstar.dao.DaoParam;
 import org.jxstar.dao.pool.DataSourceConfig;
 import org.jxstar.dao.pool.DataSourceConfigManager;
 import org.jxstar.dao.pool.PooledConnection;
@@ -39,42 +39,15 @@ public class DmUtil {
 	 * @return
 	 */
 	public static boolean existTable(String tableName, String dsName) {
-		ResultSet rs = null;
-		Connection conn = null;
-		DatabaseMetaData dbmd = null;
-		try {
-			conn = PooledConnection.getInstance().getConnection(dsName);
-			if (conn == null){
-				_log.showWarn("connection is null!!");
-				return false;
-			}
-			
-			String schema = getDbSchema(dsName);
-			
-			dbmd = conn.getMetaData();
-			rs = dbmd.getTables(null, schema.toUpperCase(), tableName.toUpperCase(), null);
-
-			if (rs.next()) {
-				String tmpTable = rs.getString("TABLE_NAME");
-				if (tableName.equalsIgnoreCase(tmpTable)) {
-					return true;
-				}
-			}
-		} catch (SQLException e) {
-			_log.showError(e);
-			return false;
-		} finally {
-			try {
-				if (rs != null) rs.close();
-				rs = null;
-				
-				if (conn != null) conn.close();
-				conn = null;
-			} catch (SQLException e) {
-				_log.showError(e);
-			}
-		}
-		return false;
+		BaseDao _dao = BaseDao.getInstance();
+		
+		String sql = "select count(*) as cnt from v_table_info where table_name = ?";
+		DaoParam param = _dao.createParam(sql);
+		
+		param.addStringValue(tableName.toLowerCase());
+		Map<String,String> mpCnt = _dao.queryMap(param);
+		
+		return !(mpCnt.get("cnt").equals("0"));
 	}
 
 	/**

@@ -16,7 +16,6 @@ import javax.naming.NamingException;
 import javax.sql.DataSource;
 
 import org.apache.commons.dbcp.BasicDataSource;
-
 import org.jxstar.util.factory.FactoryUtil;
 import org.jxstar.util.log.Log;
 
@@ -163,17 +162,44 @@ public class PooledConnection {
 		
 		ds = new BasicDataSource();
 		//取数据源设置的事务级别
-		int iTranLevel = getTranLevelConstant(dsConfig.getTranLevel());		
+		int iTranLevel = getTranLevelConstant(dsConfig.getTranLevel());
+		int maxnum = Integer.parseInt(dsConfig.getMaxConNum());
 		
 		ds.setDriverClassName(dsConfig.getDriverClass());
 		ds.setUrl(dsConfig.getJdbcUrl());
 		ds.setUsername(dsConfig.getUserName());
 		ds.setPassword(dsConfig.getPassWord());
 
-		ds.setMaxActive(Integer.parseInt(dsConfig.getMaxConNum()));
+		ds.setMaxIdle(maxnum);
+		ds.setMaxActive(maxnum);
 		ds.setMaxWait(Long.parseLong(dsConfig.getMaxWaitTime()));
 		ds.setDefaultAutoCommit(false);
 		ds.setDefaultTransactionIsolation(iTranLevel);
+		
+		//取缺省数据源时SystemVar还没有值，所以从server.xml中取值
+		String validTest = dsConfig.getValidTest();
+		String validQuery = dsConfig.getValidQuery();
+		if (validTest.equalsIgnoreCase("true")) {
+			_log.showDebug("...... pool test use query");
+			ds.setTestOnBorrow(true);
+		}
+		if (validQuery.length() > 0) {
+			ds.setValidationQuery(validQuery);
+			ds.setValidationQueryTimeout(3);
+		}
+		
+		//启用线程检查，mysql在数据库端会过期关闭连接可以启用
+		//开启此配置可以实现断开的连接自动恢复的效果
+		if (dsConfig.getValidIdle().equalsIgnoreCase("true")) {
+			_log.showDebug("...... pool idle valid thread started");
+			ds.setMinIdle(5);
+			ds.setTestWhileIdle(true);
+			
+			//10分钟检查一次，空闲30分钟的连接被释放，保留5个空闲连接
+			ds.setMinEvictableIdleTimeMillis(30*60*1000);//30 minus
+			ds.setTimeBetweenEvictionRunsMillis(10*60*1000);//10 minus
+		}
+		
 		//保存该数据源
 		_myDataSourceMap.put(dsName, ds);
 		
@@ -221,7 +247,7 @@ public class PooledConnection {
 	}
 
 	/**
-	 * 多次获取数据库连接
+	 * 多次获取数据库连接，避免有效连接数据库端已经断了
 	 * @param conn
 	 * @param ds
 	 * 
@@ -231,7 +257,7 @@ public class PooledConnection {
 		if (ds == null) return null;
 
 		try{
-			for (int i = 0; (conn == null) && (i < 5); i++) {
+			for (int i = 0; (conn == null || conn.isClosed()) && (i < 5); i++) {
 				try {
 					Thread.sleep(500);
 				} catch (InterruptedException e) {

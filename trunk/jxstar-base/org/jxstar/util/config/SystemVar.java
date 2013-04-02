@@ -12,6 +12,7 @@ import java.util.Map;
 
 import org.jxstar.dao.BaseDao;
 import org.jxstar.dao.DaoParam;
+import org.jxstar.util.StringUtil;
 import org.jxstar.util.factory.FactoryUtil;
 
 /**
@@ -86,5 +87,34 @@ public class SystemVar {
 			String value = mpVar.get("var_value");
 			_mpVar.put(key, value);
 		}
+	}
+	
+	/**
+	 * 把用于页面的系统变量转化为json对象。
+	 * @return
+	 */
+	public static String getVarJs() {
+		BaseDao _dao = BaseDao.getInstance();
+		
+		String sql = "select var_code, var_value from sys_var where use_page = '1'";
+		DaoParam param = _dao.createParam(sql);
+		List<Map<String,String>> lsVar = _dao.query(param);
+		
+		StringBuilder sbJs = new StringBuilder();
+		for (Map<String,String> mpVar : lsVar) {
+			String key = mpVar.get("var_code");
+			String value = mpVar.get("var_value");
+			
+			key = key.replaceAll("\\.", "__");
+			value = StringUtil.strForJson(value);
+			
+			sbJs.append("'" + key + "':").append("'" + value + "',");
+		}
+		
+		String json = "{}";
+		if (sbJs.length() > 0) {
+			json = "{" + sbJs.substring(0, sbJs.length()-1) + "}";
+		}
+		return json;
 	}
 }

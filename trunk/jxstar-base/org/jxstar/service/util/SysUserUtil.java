@@ -94,7 +94,7 @@ public class SysUserUtil {
 			sb.append("where sys_user.dept_id = sys_dept.dept_id ");
 			sb.append("and sys_dept.is_novalid = '0'");
 			sb.append("and sys_user.is_novalid = '0'");
-			sb.append("and sys_user.user_code = ?");
+			sb.append("and sys_user.user_id = ?");
 		
 		DaoParam param = _dao.createParam(sb.toString())
 			.addStringValue(userId);

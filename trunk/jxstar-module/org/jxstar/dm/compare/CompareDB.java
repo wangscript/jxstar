@@ -173,7 +173,7 @@ public class CompareDB extends CompareData {
     	DaoParam srcParam = _dao.createParam(srcsql);
     	srcParam.addStringValue(tableName);
     	List<Map<String,String>> lsSrc = _dao.query(srcParam);
-    	//Oracle中处理缺省值中的换行符号
+    	//Oracle、SQLServer中处理缺省值中的换行符号
     	lsSrc = clearDefaultChar(lsSrc);
     	
     	//取表配置ID
@@ -390,13 +390,10 @@ public class CompareDB extends CompareData {
     	for (Map<String,String> mpData : lsData) {
     		String key = "default_value";
     		String value = mpData.get(key);
-    		if (value != null) {
-    			value = value.replaceAll("\n", "");
-    		} else {
-    			value = "";
-    		}
+    		if (value == null) value = "";
     		
     		if (value.length() > 0) {
+    			value = value.trim();
     			if (DmUtil.hasYinHao(value)) {
     				value = value.substring(1, value.length()-1);
     			} else if (value.equals("null")) {

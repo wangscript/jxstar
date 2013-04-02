@@ -56,7 +56,7 @@ public class JsonDao {
 	 * 
 	 * @param param - 查询的参数对象
 	 * @param cols - 带表名的字段名数组
-	 * @return List
+	 * @return 返回数据格式为：{},{},{}，如果没有记录则返回null
 	 */
 	public String query(DaoParam param, String[] cols) {
 		String retJson = null;

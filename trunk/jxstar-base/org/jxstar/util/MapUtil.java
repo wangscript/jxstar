@@ -19,6 +19,36 @@ import java.util.Set;
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class MapUtil {
+	
+	/**
+	 * 从map中取double类型数值
+	 * @param mp
+	 * @param param
+	 * @return
+	 */
+	public static double getDouble(Map mp, String param) {
+		return getDouble(mp, param, "0.00");
+	}
+	
+	public static double getDouble(Map mp, String param, String defval) {
+		String value = getValue(mp, param, defval);
+		return Double.parseDouble(value);
+	}
+	
+	/**
+	 * 从map中取int类型数值
+	 * @param mp
+	 * @param param
+	 * @return
+	 */
+	public static int getInt(Map mp, String param) {
+		return getInt(mp, param, "0");
+	} 
+	
+	public static int getInt(Map mp, String param, String defval) {
+		String value = getValue(mp, param, defval);
+		return Integer.parseInt(value);
+	}
 
 	/**
 	 * 从map中取字符串值, 如果找不到对象, 则返回空串.
@@ -133,6 +163,29 @@ public class MapUtil {
 	}
 	
 	/**
+	 * map数据转换为json格式
+	 * @param mpData
+	 * @return
+	 */
+	public static String toJson(Map<String,String> mpData) {
+		if (mpData == null || mpData.isEmpty()) return "{}";
+		
+		Iterator<String> itr = mpData.keySet().iterator();
+		StringBuilder sbOne = new StringBuilder("{");
+		while(itr.hasNext()) {
+			String key = itr.next();
+			String value = mpData.get(key);
+			
+			if (value != null && (value.equals("true") || value.equals("false"))) {
+				sbOne.append("'"+ key +"':"+ value +",");
+			} else {
+				sbOne.append("'"+ key +"':'"+ StringUtil.strForJson(value) +"',");
+			}
+		}
+		return sbOne.substring(0, sbOne.length()-1) + "}";
+	}
+	
+	/**
 	 * 输出Map对象中值，用于测试配置文件中值是否正确.
 	 * 
 	 * @param mp
@@ -161,6 +214,11 @@ public class MapUtil {
 			
 			if (obj instanceof String) {
 				sb.append("	" + sName + "=" + obj + "\r\n");
+			} else if (obj instanceof String[]) {
+				String[] objs = (String[]) obj;
+				for (String val : objs) {
+					sb.append("	" + sName + "=" + val + "\r\n");
+				}
 			} else if (obj instanceof Map) {
 				sb.append("	<" + sName.toString() + ">\r\n");
 				toString((Map) obj, sb);

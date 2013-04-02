@@ -20,6 +20,7 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.jxstar.service.util.ClusterUtil;
 import org.jxstar.util.resource.JsMessage;
 
 /**
@@ -91,6 +92,14 @@ public class JxstarFilter implements Filter {
         			}
         		}
         	}
+        }
+        
+        //如果是集群环境，如果没有注册服务器，则需要注册
+        if (ClusterUtil.isCluster()) {
+	        String serverName = ClusterUtil.getServerName();
+	        if (serverName.length() == 0) {
+	        	ClusterUtil.regServer(request);
+	        }
         }
         
         chain.doFilter(req, rsp);

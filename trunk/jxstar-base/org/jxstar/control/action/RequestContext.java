@@ -29,6 +29,8 @@ public class RequestContext {
 	private String _message = "";
 	//给前台的数据信息
 	private StringBuilder _returnValue = new StringBuilder();
+	//扩展返回前台的数据信息
+	private StringBuilder _returnExtData = new StringBuilder();
 	//会话中用户信息
 	private Map<String,String> _userInfo = null;
 	//request中的客户端信息
@@ -176,6 +178,12 @@ public class RequestContext {
 			_returnValue.append("}");			
 		}
 		
+		//如果设置了扩展数据
+		if (_returnExtData.length() > 0) {
+			_returnValue.append(", ").append("extData:{")
+				.append(_returnExtData).append("}");
+		}
+		
 		return _returnValue.toString();
 	}
 
@@ -190,6 +198,19 @@ public class RequestContext {
 	}
 	
 	/**
+	 * 设置更多的json数据到前台，需要指定扩展数据的参数名称。
+	 * 该方法用于解决多BO返回数据被覆盖的问题。
+	 * @param name -- 扩展参数名称，在前台通过extData.name的方式获取扩展数据
+	 * @param json -- 必须是一个json对象，可以是{}或[]
+	 */
+	public void setReturnExtData(String name, String json) {
+		if (_returnExtData.length() > 0) {
+			_returnExtData.append(", ");
+		}
+		_returnExtData.append("'"+ name +"':").append(json);
+	}
+	
+	/**
 	 * 设置返回值，合并为JSON对象。
 	 * @param name -- 属性名
 	 * @param data -- 属性值
@@ -201,7 +222,7 @@ public class RequestContext {
 		_returnValue.append("'" + name)
 			.append("':'").append(data).append("'");
 	}
-
+	
 	/**
 	 * 取后台返回的二进制数据，一般用于返回二进制文件，可以在BO中取到文件内容，
 	 * 由out对象输出文件到页面，这样的业务类要采用FileAction。

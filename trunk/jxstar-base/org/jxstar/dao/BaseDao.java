@@ -13,7 +13,6 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
-
 import org.jxstar.dao.pool.PooledConnection;
 import org.jxstar.dao.transaction.TransactionException;
 import org.jxstar.dao.transaction.TransactionManager;
@@ -114,6 +113,8 @@ public class BaseDao {
 			return false;
 		}
 		
+		//根据配置输出SQL
+		DaoUtil.debugSQL(param, "2");
 		//取数据源名
 		String dataSource = param.getDsName();
 		
@@ -185,7 +186,7 @@ public class BaseDao {
 		
 		return ret;
 	}
-
+	
 	/**
 	 * 查询多条数据
 	 * 
@@ -193,6 +194,33 @@ public class BaseDao {
 	 * @return List<Map<String,String>>			
 	 */
 	public List<Map<String,String>> query(DaoParam param) {
+		return query(param, -1);
+	}
+	
+	/**
+	 * 查询一条数据
+	 * 
+	 * @param param - 查询的参数对象
+	 * @return Map<String,String>
+	 */
+	public Map<String,String> queryMap(DaoParam param) {
+		List<Map<String,String>> lsRet = query(param, 1);
+		
+		if (lsRet == null || lsRet.isEmpty()) {
+			return FactoryUtil.newMap();
+		}
+		
+		return lsRet.get(0);
+	}
+
+	/**
+	 * 查询多条数据
+	 * 
+	 * @param param - 查询的参数对象
+	 * @param recNum -- 控制取recNum条记录，如果<=0，则不限制数量
+	 * @return List<Map<String,String>>			
+	 */
+	private List<Map<String,String>> query(DaoParam param, int recNum) {
 		List<Map<String,String>> lsRet = FactoryUtil.newList();
 		
 		if (param == null) param = new DaoParam();
@@ -211,6 +239,8 @@ public class BaseDao {
 			return lsRet;
 		}
 		
+		//根据配置输出SQL
+		DaoUtil.debugSQL(param, "1");
 		//取数据源名
 		String dataSource = param.getDsName();
 
@@ -219,8 +249,13 @@ public class BaseDao {
 		ResultSet rs = null;
 		TransactionObject tranObj = null;
 		try {
-			tranObj = _tranMng.getTransactionObject();
-			con = tranObj.getConnection(dataSource);
+			if (param.isUseTransaction()) {
+				tranObj = _tranMng.getTransactionObject();
+				con = tranObj.getConnection(dataSource);
+			} else {
+				con = PooledConnection.getInstance().getConnection(dataSource);
+				if (con != null) con.setAutoCommit(true);
+			}
 			
 			if (con == null) {
 				_log.showWarn("connection is null sql=" + sql);
@@ -237,7 +272,12 @@ public class BaseDao {
 			DaoUtil.showQueryTime(curTime, sql);
 			
 			//结果集转换为List对象
-			lsRet = DaoUtil.getRsToList(rs);
+			lsRet = DaoUtil.getRsToList(rs, recNum);
+			
+			//如果不执行提交方法，在非事务环境中会存在连接泄露
+			if (param.isUseTransaction()) {
+				tranObj.commit();
+			}
 		} catch(SQLException e) {
 			DaoUtil.closeTranObj(tranObj);
 			DaoUtil.showException(e, sql);
@@ -252,27 +292,18 @@ public class BaseDao {
 				rs = null;
 				if (ps != null) ps.close();
 				ps = null;			
+				
+				if (!param.isUseTransaction()) {
+					if (con != null) {
+						con.close();
+					}
+					con = null;
+				}
 			} catch (SQLException e) {
 				_log.showError(e);
 			}
 		}
 
 		return lsRet;
-	}
-	
-	/**
-	 * 查询一条数据
-	 * 
-	 * @param param - 查询的参数对象
-	 * @return Map<String,String>
-	 */
-	public Map<String,String> queryMap(DaoParam param) {
-		List<Map<String,String>> lsRet = query(param);
-		
-		if (lsRet == null || lsRet.isEmpty()) {
-			return FactoryUtil.newMap();
-		}
-		
-		return lsRet.get(0);
 	}
 }
