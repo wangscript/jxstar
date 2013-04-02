@@ -88,12 +88,16 @@ public class TransactionManagerImp implements TransactionManager {
 		if (tranObj == null) {
 			throw new TransactionException("commit use'transobject is null! ");
 		}
-		//提交
-		tranObj.setAutoCommit(true);
-		tranObj.commit();
-		//删除当前事务对象
-		_mpTranObj.remove(currID);
-		tranObj = null;		
+		
+		try {
+			//提交
+			tranObj.setAutoCommit(true);
+			tranObj.commit();
+		} finally {
+			//删除当前事务对象
+			_mpTranObj.remove(currID);
+			tranObj = null;
+		}
 	}
 
 	/** 
@@ -109,12 +113,16 @@ public class TransactionManagerImp implements TransactionManager {
 		if (tranObj == null) {
 			throw new TransactionException("rollback use'transobject is null! ");
 		}
-		//回滚
-		tranObj.setAutoCommit(true);
-		tranObj.rollback();
-		//删除当前事务对象
-		_mpTranObj.remove(currID);
-		tranObj = null;
+		
+		try {
+			//回滚
+			tranObj.setAutoCommit(true);
+			tranObj.rollback();
+		} finally {
+			//删除当前事务对象
+			_mpTranObj.remove(currID);
+			tranObj = null;
+		}
 	}
 	
 	/**

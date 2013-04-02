@@ -166,11 +166,8 @@ public class SysDataUtil {
 			List<Map<String,String>> lsData) throws BoException {
 		//取当前功能的字段信息
 		List<String> lsField = getFunColumn(funId);
-		//取功能定义from语句中的相关表名
-		String[] tables = getFunTables(funId);
-		if (tables == null) {
-			throw new BoException(JsMessage.getValue("system.fromsql.error"));
-		}
+		//取功能定义的表名
+		String tableName = getFunTable(funId);
 		
 		//取数据权限的运算关系
 		List<Map<String,String>> lsRela = queryFunData(funId, roleId);
@@ -199,7 +196,7 @@ public class SysDataUtil {
 				}
 				
 				//取功能字段列定义中的字段名
-				String funField = getTableField(tables, typeField, lsField);
+				String funField = getTableField(tableName, typeField, lsField);
 				//如果字段列表中没有该字段，则不处理
 				if (funField.length() == 0) continue;
 				
@@ -374,21 +371,20 @@ public class SysDataUtil {
 	
 	/**
 	 * 取功能中是否包括数据权限控制字段，如果有则返回控制字段，否则为空
-	 * @param tables -- 当前功能相关的表名
+	 * @param table -- 当前功能的表名
 	 * @param field -- 控制字段
 	 * @param lsCol -- 功能字段列表
 	 * @return
 	 */
-	private static String getTableField(String[] tables, String field, List<String> lsCol) {
-		String tfield = "";
-		for (int i =0, n = tables.length; i < n; i++){
-			tfield = tables[i] + "." + field;
-			if (lsCol.contains(tfield)){
+	private static String getTableField(String table, String field, List<String> lsCol) {
+		String dot = ".";
+		if (field.equalsIgnoreCase("add_userid")) {
+			return table + dot + field;
+		}
+		//找到字段则返回
+		for (String tfield : lsCol) {
+			if (tfield.endsWith(dot + field)) {
 				return tfield;
-			} else {
-				if (field.equalsIgnoreCase("add_userid")) {
-					return tfield;
-				}	
 			}
 		}
 		return "";
@@ -416,36 +412,16 @@ public class SysDataUtil {
 	}
 	
 	/**
-	 * 取功能定义from语句中的相关表名
-	 * @param funId -- 功能ID
+	 * 取功能表名
+	 * @param funId
 	 * @return
 	 */
-	private static String[] getFunTables(String funId) {
-		//取功能定义信息
+	private static String getFunTable(String funId) {
 		DefineDataManger config = DefineDataManger.getInstance();
 		Map<String,String> mpFun = config.getFunData(funId);
 		
-		//取功能定义from语句
-		String formTable = mpFun.get("from_sql").toLowerCase();
-		if (formTable == null || formTable.length() == 0) return null;
-		//取功能主表名
-		String mainTable = mpFun.get("table_name").toLowerCase();
-		
-		String[] froms = formTable.split("from ");
-		if (froms.length < 2) return null;
-		String[] tables = froms[1].split(",");
-		
-		//清除表名间空格，并把主表名排在第1个
-		for (int i =0, n = tables.length; i < n ; i ++){
-			tables[i] = tables[i].trim();
-			
-			if (tables[i].equals(mainTable) && i > 0){
-				String strTmp = tables[0];
-				tables[0] = mainTable;
-				tables[i] = strTmp;
-			}
-		}
-		return tables;
+		String table = MapUtil.getValue(mpFun, "table_name");
+		return table.toLowerCase();
 	}
 	
 	/**

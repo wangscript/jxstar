@@ -268,7 +268,7 @@ public class SystemInitUtil {
 		
 		try {
 			//创建解析工具的class对象
-			Class clzz = Class.forName(sParserClass);
+			Class<?> clzz = Class.forName(sParserClass);
 
 			//创建解析工具的实例		
 			ConfigParser clzzObj = (ConfigParser) clzz.newInstance();
@@ -282,9 +282,9 @@ public class SystemInitUtil {
 			}
 			
 			//创建配置信息工具的class对象
-			Class clzzu  = Class.forName(sUtilClass);
+			Class<?> clzzu  = Class.forName(sUtilClass);
 			//调用配置信息工具的初始化方法
-			Method method = clzzu.getMethod("init", new Class[]{Map.class});
+			Method method = clzzu.getMethod("init", Map.class);
 			method.invoke(null, new Object[]{mpConfig});
 		} catch (Exception e) {
 			_log.showError(e);
@@ -311,9 +311,9 @@ public class SystemInitUtil {
 		
 		try {
 			//创建资源工具的class对象
-			Class clzz = Class.forName(sResourceClass);
+			Class<?> clzz = Class.forName(sResourceClass);
 			//调用资源工具的初始化方法
-			Method method = clzz.getMethod("init", new Class[]{String.class});
+			Method method = clzz.getMethod("init", String.class);
 			method.invoke(null, new Object[]{sFileName});
 		} catch (Exception e) {
 			_log.showError(e);

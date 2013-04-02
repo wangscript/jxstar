@@ -6,7 +6,10 @@
  */
 package org.jxstar.service.query;
 
+import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.jxstar.control.action.RequestContext;
 import org.jxstar.dao.DaoParam;
@@ -14,6 +17,7 @@ import org.jxstar.dao.JsonDao;
 import org.jxstar.dao.util.DBTypeUtil;
 import org.jxstar.service.BoException;
 import org.jxstar.service.BusinessObject;
+import org.jxstar.service.define.DefineName;
 import org.jxstar.service.define.FunctionDefine;
 import org.jxstar.service.define.FunctionDefineManger;
 import org.jxstar.service.util.PageSQL;
@@ -21,6 +25,7 @@ import org.jxstar.service.util.WhereUtil;
 import org.jxstar.util.ArrayUtil;
 import org.jxstar.util.MapUtil;
 import org.jxstar.util.StringUtil;
+import org.jxstar.util.factory.FactoryUtil;
 import org.jxstar.util.resource.JsMessage;
 
 /**
@@ -114,6 +119,15 @@ public class GridQuery extends BusinessObject {
 			}
 		} else {
 			ordersql = " order by " + sort + " " + dir;
+			//防止排序后分页数据不对添加的排序字段
+			String field = getSortField(funid);
+			if (field.length() > 0) {
+				//如果是SqlServer数据库，两个相同的字段排序会报错
+				String f = StringUtil.getNoTableCol(field);
+				if (sort.indexOf(f) < 0) {
+					ordersql += ", " + field;
+				}
+			}
 		}
 		_log.showDebug("gridquery order sql:" + ordersql);
 		
@@ -167,7 +181,7 @@ public class GridQuery extends BusinessObject {
 				_log.showDebug("total allsql:" + sumSql);
 				
 				param.setSql(sumSql);
-				String[] sumCols = ArrayUtil.getGridCol(sumSql);
+				String[] sumCols = getSumCols(sumSql);
 				sumJson = jsonDao.query(param, sumCols);
 			}
 		}
@@ -180,5 +194,36 @@ public class GridQuery extends BusinessObject {
 		setReturnData(sbJson.toString());
 		
 		return _returnSuccess;
+	}
+	
+	/**
+	 * SQL格式为：select sum(col1),sum(col2)... from ...
+	 * 取sum()中的那个字段名，并替换.为__
+	 * @param sql
+	 * @return
+	 */
+	public String[] getSumCols(String sql) {
+		List<String> lsRet = FactoryUtil.newList();
+		
+		Pattern p = Pattern.compile("sum\\([^(]+\\)");
+		Matcher m = p.matcher(sql);
+		while (m.find()) {
+			String col = m.group();
+			col = col.substring(4, col.length()-1);
+			col = col.replace(".", "__");
+			lsRet.add(col);
+		}
+		
+		return lsRet.toArray(new String[lsRet.size()]);
+	}
+	
+	//防止排序后分页数据不对添加的排序字段
+	private String getSortField(String funId) {
+		String sql = "select attr_value from fun_attr where attr_name = 'sortField' and fun_id = ?";
+		DaoParam param = _dao.createParam(sql);
+		param.addStringValue(funId);
+		
+		Map<String,String> mp = _dao.queryMap(param);
+		return MapUtil.getValue(mp, "attr_value").trim();
 	}
 }

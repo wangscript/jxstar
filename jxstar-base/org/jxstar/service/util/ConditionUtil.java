@@ -77,6 +77,20 @@ public class ConditionUtil {
 	}
 	
 	/**
+	 * 检查查询条件SQL语句是否合法
+	 * @param condition -- 查询条件SQL
+	 * @return
+	 */
+	public static boolean validCondition(String condition) {
+		if (condition == null || condition.length() == 0) return true;
+		
+		String sql = "select count(*) as cnt from fun_base where fun_id = 'sys_fun_base' and (" + condition + ")";
+		DaoParam param = _dao.createParam(sql);
+		
+		return MapUtil.hasRecord(_dao.queryMap(param));
+	}
+	
+	/**
 	 * 解析条件中的用户常量值。
 	 * @param condition -- 判断条件
 	 * @param mpUser -- 用户信息
@@ -117,17 +131,5 @@ public class ConditionUtil {
 		if (mpData.isEmpty()) return "";
 		
 		return mpData.get("cond_where");
-	}
-	
-	/**
-	 * 检查查询条件SQL语句是否合法
-	 * @param condition -- 查询条件SQL
-	 * @return
-	 */
-	private static boolean validCondition(String condition) {
-		String sql = "select count(*) as cnt from fun_base where fun_id = 'sys_fun_base' and (" + condition + ")";
-		DaoParam param = _dao.createParam(sql);
-		
-		return MapUtil.hasRecord(_dao.queryMap(param));
 	}
 }

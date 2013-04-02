@@ -8,9 +8,11 @@ package org.jxstar.dm;
 
 
 import org.jxstar.dao.util.DBTypeUtil;
+import org.jxstar.dm.ddl.DB2DdlTable;
 import org.jxstar.dm.ddl.MysqlDdlTable;
 import org.jxstar.dm.ddl.OracleDdlTable;
 import org.jxstar.dm.ddl.SqlServerDdlTable;
+import org.jxstar.dm.reverse.DB2MetaData;
 import org.jxstar.dm.reverse.OracleMetaData;
 
 /**
@@ -35,6 +37,8 @@ public class DmFactory {
 			return new MysqlDdlTable();
 		} else if (dbType.equals(DBTypeUtil.SQLSERVER)) {
 			return new SqlServerDdlTable();
+		} else if (dbType.equals(DBTypeUtil.DB2)) {
+			return new DB2DdlTable();
 		};
 		
 		return null;
@@ -54,6 +58,8 @@ public class DmFactory {
 			return new MetaData();
 		} else if (dbType.equals(DBTypeUtil.SQLSERVER)) {
 			return new MetaData();
+		} else if (dbType.equals(DBTypeUtil.DB2)) {
+			return new DB2MetaData();
 		};
 		
 		return null;

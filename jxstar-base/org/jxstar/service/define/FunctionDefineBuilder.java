@@ -9,8 +9,8 @@ package org.jxstar.service.define;
 import java.util.List;
 import java.util.Map;
 
-
 import org.jxstar.service.BoException;
+import org.jxstar.service.util.FunStatus;
 import org.jxstar.util.ArrayUtil;
 import org.jxstar.util.MapUtil;
 import org.jxstar.util.StringUtil;
@@ -70,10 +70,12 @@ public class FunctionDefineBuilder {
 		
 		//解析where子句中的参数{VALIDDATA}
 		String auditCol = MapUtil.getValue(mpFun, "audit_col");
-		String validFlag = MapUtil.getValue(mpFun, "valid_flag");
+		String flag = MapUtil.getValue(mpFun, "valid_flag");
+		//取真实状态值
+		flag = FunStatus.getValidStatus(mpFun.get("fun_id"), flag);
 		if (whereSQL.indexOf("{VALIDDATA}") >= 0) {
 			if (auditCol.length() > 0) {
-				String validsql = auditCol + "='" + validFlag + "'";
+				String validsql = auditCol + "='" + flag + "'";
 				whereSQL = whereSQL.replace("{VALIDDATA}", validsql);
 			}
 		}
@@ -127,7 +129,7 @@ public class FunctionDefineBuilder {
 			StringBuilder sql = new StringBuilder("select ");
 			for (int i = 0, n = lsSums.size(); i < n; i++) {
 				String col = lsSums.get(i);
-				sql.append(" sum("+col+") as "+col.replace(".", "__")+",");
+				sql.append("sum("+col+"),");//不采用别名，是因为table__field作为别名时，长度超过30，在oracle中会报错
 			}
 			 String ssql = sql.substring(0, sql.length()-1);
 			 ssql += " " + MapUtil.getValue(mpFun, "from_sql");

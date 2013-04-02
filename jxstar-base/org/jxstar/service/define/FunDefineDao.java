@@ -131,7 +131,7 @@ public class FunDefineDao {
 			sbsql.append("stat_col, stat_fkcol, stat_where ");
 			sbsql.append("from fun_col, fun_colext where ");
 			sbsql.append("fun_col.col_id = fun_colext.col_id and ");
-			sbsql.append("stat_tables > ' ' and fun_id = ?");
+			sbsql.append("stat_col > ' ' and stat_tables > ' ' and stat_fkcol > ' ' and fun_id = ?");
 		
 		DaoParam param = _dao.createParam(sbsql.toString());
 		param.addStringValue(funId);

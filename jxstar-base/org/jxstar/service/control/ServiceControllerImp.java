@@ -14,6 +14,8 @@ import org.jxstar.control.action.RequestContext;
 import org.jxstar.dao.transaction.TransactionException;
 import org.jxstar.dao.transaction.TransactionManager;
 import org.jxstar.service.define.EventDefine;
+import org.jxstar.service.util.SysLogUtil;
+import org.jxstar.util.config.SystemVar;
 import org.jxstar.util.factory.SystemFactory;
 import org.jxstar.util.log.Log;
 
@@ -88,9 +90,13 @@ public class ServiceControllerImp implements ServiceController {
 		String supportTran = requestContext.getRequestValue("support_tran");
 		boolean isTran = (!supportTran.equals("0"));
 		
+		boolean hasLock = SystemVar.getValue("sys.lock.has", "1").equals("1");
+		//检查当前正在执行的操作，如果存在就退出
+		if (hasLock && ControlerLock.checkDoing(requestContext)) return false;
+		
 		//开始一个事务
 		if (isTran) _tranMng.startTran();
-		try {
+		try {			
 			//执行事件的调用类
 			if (!ControlerUtil.executeEvent(lsInvoke, requestContext)) {
 				if (isTran) _tranMng.rollbackTran();
@@ -102,6 +108,13 @@ public class ServiceControllerImp implements ServiceController {
 		} catch (TransactionException e) {
 			_log.showError(e);
 			return false;
+		} finally {
+			//删除业务锁注册记录
+			if (hasLock) {
+				ControlerLock.delDoing(requestContext);
+			}
+			//记录操作日志
+			SysLogUtil.writeLog(requestContext);
 		}
 
 		return true;

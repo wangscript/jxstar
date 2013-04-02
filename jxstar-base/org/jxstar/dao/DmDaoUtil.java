@@ -87,6 +87,11 @@ public class DmDaoUtil {
 	 * @return
 	 */
 	private static List<Map<String,String>> queryField(String tableName) {
+		if (tableName == null || tableName.length() == 0) {
+			return FactoryUtil.newList();
+		}
+		tableName = tableName.toLowerCase();
+		
 		String sql = "select field_name, data_type from dm_field where table_id in " +
 				"(select table_id from dm_table where table_name = ?) order by field_index";
 		
@@ -102,14 +107,16 @@ public class DmDaoUtil {
 	 * @return
 	 */
 	private static String cvtDataType(String dataType) {
+		dataType = dataType.toLowerCase();
+		
 		if (dataType.indexOf("char") >= 0) {
 			return "string";
-		} else if (dataType.indexOf("date") >= 0) {
-			return "date";
-		} else if (dataType.indexOf("int") >= 0) {
-			return "int";
 		} else if (dataType.indexOf("number") >= 0) {
 			return "double";
+		} else if (dataType.indexOf("date") >= 0) {
+			return "date";
+		} else if (dataType.equals("int") || dataType.equals("double")) {
+			return dataType;
 		}
 		
 		return "string";

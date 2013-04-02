@@ -23,19 +23,16 @@ public class SystemVarBO extends BusinessObject {
 
 	/**
 	 * 保存后的方法，如果有多条记录，则值格式如：var1,var2,var3...
-	 * @param varcodes -- 修改的变量代号
-	 * @param varvalues -- 修改的变量值
+	 * @param keys -- 修改的变量代号
+	 * @param values -- 修改的变量值
 	 * @return
 	 */
-	public String postSave(String varcodes, String varvalues) {
-		if (varcodes == null || varcodes.length() == 0 ||
-				varvalues == null || varvalues.length() == 0) {
+	public String postSave(String[] keys, String[] values) {
+		//不需判断values，可能存在空值
+		if (keys == null || keys.length == 0) {
 			_log.showDebug("没有系统属性被修改！");
 			return _returnSuccess;
 		}
-		
-		String[] keys = varcodes.split(",");
-		String[] values = varvalues.split(",");
 		
 		for (int i = 0, n = keys.length; i < n; i++) {
 			String key = keys[i];

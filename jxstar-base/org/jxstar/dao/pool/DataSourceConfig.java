@@ -42,13 +42,19 @@ public class DataSourceConfig {
 	//数据源密码
 	private String passWord;
 	//数据源的最大连接数
-	private String maxConNum;
+	private String maxConNum = "50";
 	//获取连接的最大等待时间(ms)
-	private String maxWaitTime;
+	private String maxWaitTime = "5000";
 	//获取连接的事务级别
 	private String tranLevel;
 	//数据库类型
-	private String dbmsType;	
+	private String dbmsType;
+	//是否检查连接有效性
+	private String validTest = "false";
+	//检查连接有效性的SQL
+	private String validQuery = "";
+	//启用检查空闲连接的线程
+	private String validIdle = "false";
 	
 	public String toString() {
 		StringBuilder sbDBS = new StringBuilder("\n\t");
@@ -62,7 +68,10 @@ public class DataSourceConfig {
 			sbDBS.append("maxWaitTime:" + maxWaitTime + "\n\t");
 			sbDBS.append("tranLevel:" + tranLevel + "\n\t");
 			sbDBS.append("jndiName:" + jndiName + "\n\t");
-			sbDBS.append("dbmsType:" + dbmsType);
+			sbDBS.append("dbmsType:" + dbmsType + "\n\t");
+			sbDBS.append("validIdle:" + validIdle + "\n\t");
+			sbDBS.append("validTest:" + validTest + "\n\t");
+			sbDBS.append("validQuery:" + validQuery);
 		
 		return sbDBS.toString();
 	}
@@ -179,5 +188,29 @@ public class DataSourceConfig {
 
 	public void setSchemaName(String schemaName) {
 		this.schemaName = schemaName;
+	}
+	
+	public String getValidTest() {
+		return validTest;
+	}
+
+	public void setValidTest(String validTest) {
+		this.validTest = validTest;
+	}
+
+	public String getValidQuery() {
+		return validQuery;
+	}
+
+	public void setValidQuery(String validQuery) {
+		this.validQuery = validQuery;
+	}
+	
+	public String getValidIdle() {
+		return validIdle;
+	}
+
+	public void setValidIdle(String validIdle) {
+		this.validIdle = validIdle;
 	}
 }

@@ -15,6 +15,7 @@ import org.jxstar.dao.DaoParam;
 import org.jxstar.dao.DaoUtil;
 import org.jxstar.service.BoException;
 import org.jxstar.service.BusinessEvent;
+import org.jxstar.service.util.FunStatus;
 import org.jxstar.service.util.ServiceUtil;
 import org.jxstar.util.factory.FactoryUtil;
 import org.jxstar.util.key.CodeCreator;
@@ -141,11 +142,12 @@ public class CopyEvent extends BusinessEvent {
 					mpCopy.put(copyCol, copyVal);
 				}
 			}
-			
+			//取设置的业务状态值
+			String audit0 = FunStatus.getValue(_funID, "audit0", "0");
 			//取签字列
 			String auditCol = _funObject.getElement("audit_col");
 			if (auditCol != null && auditCol.length() > 0) {
-				mpCopy.put(auditCol, "0");
+				mpCopy.put(auditCol, audit0);
 			}
 			
 			if (!ServiceUtil.insertRow(mpCopy, _userInfo, _funObject)) {

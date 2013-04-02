@@ -47,6 +47,12 @@ public class DeleteEvent extends BusinessEvent {
 			return _returnFaild;
 		}
 		
+		//选择的记录中存在已删除的记录，请刷新数据后再操作
+		if (checkDeleted(asKey)) {
+			setMessage(JsMessage.getValue("functionbm.deletenum"));
+			return _returnFaild;
+		}
+		
 		//取删除SQL语句
 		String delSql = _funObject.getDeleteSQL();
 		
@@ -84,6 +90,34 @@ public class DeleteEvent extends BusinessEvent {
 		}
 		
 		return _returnSuccess;
+	}
+	
+	/**
+	 * 检查已经删除的记录，如果存在，则不能继续执行
+	 * @param keyIds
+	 * @return
+	 */
+	private boolean checkDeleted(String[] keyIds) {
+		if (keyIds == null || keyIds.length == 0) return false;
+		
+		String pkcol = _funObject.getElement("pk_col");
+		String table = _funObject.getElement("table_name");
+		
+		StringBuilder sb = new StringBuilder("select count(*) as cnt from ");
+		sb.append(table).append(" where ").append(pkcol).append(" = ?");
+		
+		DaoParam param = _dao.createParam(sb.toString());
+		for (String keyId : keyIds) {
+			param.addStringValue(keyId);
+			Map<String, String> mp = _dao.queryMap(param);
+			
+			int num = Integer.parseInt(mp.get("cnt"));
+			if (num == 0) return true;
+			
+			param.clearParam();
+		}
+		
+		return false;
 	}
 	
 	/**

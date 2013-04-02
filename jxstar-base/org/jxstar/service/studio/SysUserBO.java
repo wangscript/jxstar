@@ -89,6 +89,25 @@ public class SysUserBO extends BusinessObject {
 	}
 	
 	/**
+	 * 新增用户时创建新的缺省密码
+	 * @param userIds
+	 * @return
+	 */
+	public String createPass(String[] userIds) {
+		for (int i = 0, n = userIds.length; i < n; i++) {
+			//如果有密码了，则不修改
+			if (hasPass(userIds[i])) continue;
+			
+			if (!updatePass(userIds[i], "888")) {
+				setMessage(JsMessage.getValue("sysuserbo.updateerror"));
+				return _returnFaild;
+			}
+		}
+		
+		return _returnSuccess;
+	}
+	
+	/**
 	 * 修改密码
 	 * @param userId -- 用户ID
 	 * @param newPass -- 新密码
@@ -121,5 +140,22 @@ public class SysUserBO extends BusinessObject {
 		
 		Map<String,String> mp = _dao.queryMap(param);
 		return MapUtil.hasRecord(mp);
+	}
+	
+	/**
+	 * 判断用户是否有密码
+	 * @param userId
+	 * @return
+	 */
+	private boolean hasPass(String userId) {
+		String sql = "select user_pwd from sys_user where user_id = ?";
+		
+		DaoParam param = _dao.createParam(sql);
+		param.addStringValue(userId);
+		
+		Map<String,String> mp = _dao.queryMap(param);
+		if (mp.isEmpty()) return false;
+		
+		return mp.get("user_pwd").length() > 0;
 	}
 }

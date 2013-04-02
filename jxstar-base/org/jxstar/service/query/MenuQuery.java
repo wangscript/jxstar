@@ -12,7 +12,6 @@ import java.util.Map;
 import org.jxstar.dao.DaoParam;
 import org.jxstar.service.BusinessObject;
 import org.jxstar.service.util.SysUserUtil;
-import org.jxstar.util.config.SystemVar;
 import org.jxstar.util.factory.FactoryUtil;
 import org.jxstar.util.resource.JsMessage;
 
@@ -168,7 +167,7 @@ public class MenuQuery extends BusinessObject {
 		if (lsModule == null || lsModule.isEmpty()) return retJson;
 		
 		//取平台版本类型，如果是标准版，则不显示工作流与报表模块
-		String verType = SystemVar.getValue("sys.version.type", "SE");
+		//String verType = SystemVar.getValue("sys.version.type", "SE");
 		
 		StringBuilder sbJson = new StringBuilder();
 		for (int i = 0, n = lsModule.size(); i < n; i++) {
@@ -176,12 +175,12 @@ public class MenuQuery extends BusinessObject {
 			
 			//二级模块ID
 			String moduleId = mpModule.get("module_id");
-			
+			/*
 			if (verType.equals("SE")) {
 				if (moduleId.equals("10100003") || moduleId.equals("10100004")) {
 					continue;
 				}
-			}
+			}*/
 			
 			//二级模块名称
 			String moduleName = mpModule.get("module_name");

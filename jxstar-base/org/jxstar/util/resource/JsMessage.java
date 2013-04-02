@@ -64,7 +64,12 @@ public class JsMessage {
 	 */
 	public static String getValue(String key) {
 		try {
-			return _resource.getString(key);
+			//有时由于没有设置正确国家地区，就找不到资源文件
+			if (_resource == null) {
+				return "not find "+_filename+"!";
+			} else {
+				return _resource.getString(key);
+			}
 		} catch (MissingResourceException e) {
 			return "nokey='" + key + "'";
 		}

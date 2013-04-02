@@ -6,6 +6,7 @@
  */
 package org.jxstar.service.portlet;
 
+import java.util.List;
 import java.util.Map;
 
 import org.jxstar.control.action.RequestContext;
@@ -16,6 +17,8 @@ import org.jxstar.service.BusinessObject;
 import org.jxstar.service.event.CreateEvent;
 import org.jxstar.util.ArrayUtil;
 import org.jxstar.util.DateUtil;
+import org.jxstar.util.MapUtil;
+import org.jxstar.util.factory.FactoryUtil;
 import org.jxstar.util.resource.JsMessage;
 import org.jxstar.util.resource.JsParam;
 
@@ -103,9 +106,9 @@ public class PortletMsgBO extends BusinessObject {
 		}
 		
 		//如果是个人发送的消息
-		int len = msgId.length();
-		if (msgId.charAt(len-1) == '-') {
-			String formId = msgId.substring(0, len-1);
+		int index = msgId.indexOf("-");
+		if (index >= 0) {
+			String formId = msgId.substring(0, index);
 			if (!updateState(formId)) {
 				setMessage(JsMessage.getValue("portlet.msgstateerror"));
 				return _returnFaild;
@@ -187,6 +190,14 @@ public class PortletMsgBO extends BusinessObject {
 			throw new BoException(JsMessage.getValue("portlet.msginiterror"));
 		}
 		
+		List<Map<String,String>> lsUser = queryUser(msgId);
+		//添加表单中的接收人
+		putUser(lsUser, mpMsg);
+		
+		if (lsUser.isEmpty()) {
+			throw new BoException("没有选择消息接收人！");
+		}
+		
 		//更新消息的状态
 		String usql = "update plet_msg set msg_state = '1' where msg_id = ?";
 		DaoParam param = _dao.createParam(usql);
@@ -201,23 +212,28 @@ public class PortletMsgBO extends BusinessObject {
 		String isql = "insert into plet_msg(msg_id, content, from_userid, from_user, " +
 					  "to_userid, to_user, send_date, msg_state, msg_type, isto, add_userid, add_date) " +
 					  "values (?, ?, ?, ?,  ?, ?, ?, ?, ?, '1', ?, ?)";
-		DaoParam iparam = _dao.createParam(isql);
-		iparam.addStringValue(msgId+'-');
-		iparam.addStringValue(mpMsg.get("content"));
-		iparam.addStringValue(mpMsg.get("from_userid"));
-		iparam.addStringValue(mpMsg.get("from_user"));
-		iparam.addStringValue(mpMsg.get("to_userid"));
-		iparam.addStringValue(mpMsg.get("to_user"));
-		iparam.addDateValue(mpMsg.get("send_date"));
-		iparam.addStringValue("1");//msg_state 消息状态为“新”
-		iparam.addStringValue(mpMsg.get("msg_type"));
-		iparam.addStringValue(mpMsg.get("add_userid"));
-		iparam.addDateValue(mpMsg.get("add_date"));
 		
-		bu = _dao.update(iparam);
-		if (!bu) {
-			//"发送消息失败：复制消息记录失败！"
-			throw new BoException(JsMessage.getValue("portlet.msgcopyerror"));
+		for (int i = 0; i < lsUser.size(); i++) {
+			 Map<String,String> mpUser = lsUser.get(i);
+			 
+			DaoParam iparam = _dao.createParam(isql);
+			iparam.addStringValue(msgId+'-'+i);
+			iparam.addStringValue(mpMsg.get("content"));
+			iparam.addStringValue(mpMsg.get("from_userid"));
+			iparam.addStringValue(mpMsg.get("from_user"));
+			iparam.addStringValue(mpUser.get("user_id"));
+			iparam.addStringValue(mpUser.get("user_name"));
+			iparam.addDateValue(mpMsg.get("send_date"));
+			iparam.addStringValue("1");//msg_state 消息状态为“新”
+			iparam.addStringValue(mpMsg.get("msg_type"));
+			iparam.addStringValue(mpMsg.get("add_userid"));
+			iparam.addDateValue(mpMsg.get("add_date"));
+			
+			bu = _dao.update(iparam);
+			if (!bu) {
+				//"发送消息失败：复制消息记录失败！"
+				throw new BoException(JsMessage.getValue("portlet.msgcopyerror"));
+			}
 		}
 	}
 	
@@ -248,5 +264,39 @@ public class PortletMsgBO extends BusinessObject {
 		param.addStringValue(msgId);
 		
 		return _dao.queryMap(param);
+	}
+	
+	/**
+	 * 取多个分配人
+	 * @param msgId
+	 * @return
+	 */
+	private List<Map<String,String>> queryUser(String msgId) {
+		String sql = "select user_id, user_name from plet_msg_user where msg_id = ?";
+		DaoParam param = _dao.createParam(sql);
+		param.addStringValue(msgId);
+		
+		return _dao.query(param);
+	}
+	
+	/**
+	 * 如果表单中的接收人没有重复，则也发送消息
+	 * @param lsUser
+	 * @param mpUser
+	 */
+	private void putUser(List<Map<String,String>> lsUser, Map<String,String> mpUser) {
+		String userId = MapUtil.getValue(mpUser, "to_userid");
+		if (userId.length() == 0) return;
+		
+		for (Map<String,String> myUser:lsUser) {
+			String myId = myUser.get("user_id");
+			if (myId.equals(userId)) return;
+		}
+		
+		String userName = MapUtil.getValue(mpUser, "to_user");
+		Map<String,String> mp = FactoryUtil.newMap();
+		mp.put("user_id", userId);
+		mp.put("user_name", userName);
+		lsUser.add(mp);
 	}
 }

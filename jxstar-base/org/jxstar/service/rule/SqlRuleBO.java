@@ -6,11 +6,10 @@
  */
 package org.jxstar.service.rule;
 
+import java.util.List;
 import java.util.Map;
 
-
 import org.jxstar.service.BusinessObject;
-import org.jxstar.service.define.DefineDataManger;
 import org.jxstar.util.ArrayUtil;
 import org.jxstar.util.resource.JsMessage;
 
@@ -54,44 +53,54 @@ public class SqlRuleBO extends BusinessObject {
 			setMessage(JsMessage.getValue("sqlrulebo.routenull"));
 			return _returnFaild;
 		}
+		_log.showDebug("============sql rule routeId=" + routeId);
 		
-		//目标功能的子功能ID
-		DefineDataManger manger = DefineDataManger.getInstance();
-		Map<String,String> destDefine = manger.getFunData(destFunId);
-		String[] subFunIds = destDefine.get("subfun_id").split("/,");
+		//取导入SQL定义，如果没有定义则不处理
+		Map<String, String> mpRule = _ruleUtil.queryRule(routeId, destFunId);
+		if (mpRule.isEmpty()) {
+			setMessage(JsMessage.getValue("sqlrulebo.mainnorule"), destFunId);
+			return _returnFaild;
+		}
+		
+		//取除第一条SQL外的语句
+		List<Map<String, String>> lsOther = _ruleUtil.queryOtherRule(routeId);
+		_log.showDebug("============other sql size=" + lsOther.size());
+		
+		//保存新的记录ID返回前台
+		StringBuilder sbkeyid = new StringBuilder();
 		
 		//执行数据导入
 		for (int i = 0, n = selKeyId.length; i < n; i++) {
 			//执行主表数据导入，返回新增的记录主键ID
-			String newKeyId = _ruleUtil.exeInsert(srcFunId, destFunId, 
-					selKeyId[i], forKeyId, routeId, userInfo);
-			if (newKeyId.equals("true")) {
-				setMessage(JsMessage.getValue("sqlrulebo.mainnorule"), destFunId);
-				return _returnFaild;
-			}
+			String newKeyId = _ruleUtil.exeInsert(mpRule, selKeyId[i], forKeyId, userInfo);
 			if (newKeyId.equals("false")) {
 				setMessage(JsMessage.getValue("sqlrulebo.mainerror"), destFunId);
 				return _returnFaild;
 			}
+			sbkeyid.append("{impKeyId:'"+ selKeyId[i] +"'"+", newKeyId:'"+ newKeyId +"'},");
 			
-			//如果没有子功能，则不用处理
-			if (subFunIds.length == 0) continue;
+			//如果没有其它反馈SQL，则不处理
+			if (lsOther.isEmpty()) continue;
 			
-			//新的外键值
+			_log.showDebug("============start execute import event other sql");
+			//新的外键值，一般只有一条
 			String[] newKeyIds = newKeyId.split(";");
-			//导入子表数据
+			//继续执行其它反馈SQL
 			for (int j = 0, m = newKeyIds.length; j < m; j++) {
-				for (int k = 0, p = subFunIds.length; k < p; k++) {
-					//来源功能ID只是用来取数据源名，子表也采用父表的数据源
-					String newSubId = _ruleUtil.exeInsert(srcFunId, subFunIds[k], 
-						selKeyId[i], newKeyIds[j], routeId, userInfo);
-					if (newSubId.equals("false")) {
-						setMessage(JsMessage.getValue("sqlrulebo.suberror"), subFunIds[k]);
-						return _returnFaild;
-					}
+				if (!_ruleUtil.exeUpdate(lsOther, selKeyId[i], newKeyIds[j], userInfo)) {
+					setMessage(JsMessage.getValue("sqlrulebo.updateerror"));
+					return _returnFaild;
 				}
 			}
+			_log.showDebug("============end execute import event other sql\r\n");
 		}
+		//把新增主键值返回到前台
+		String json = "[]";
+		if (sbkeyid.length() > 0) {
+			json = "[" + sbkeyid.substring(0, sbkeyid.length()-1) + "]";
+		}
+		setReturnData(json);
+		_log.showDebug("------------sql rule import return data: " + json);
 		_log.showDebug("------------sql rule import end.");
 		
 		return _returnSuccess;
@@ -114,8 +123,14 @@ public class SqlRuleBO extends BusinessObject {
 		}
 		_log.showDebug("------------sql rule update param funid="+funId+" eventcode="+eventCode+" selkeyid="+ArrayUtil.arrayToString(selKeyId));
 		
+		List<Map<String, String>> lsRule = _ruleUtil.queryUpdateRule(funId, eventCode);
+		if (lsRule.isEmpty()) {
+			_log.showDebug("------------not rule define update sql!");
+			return _returnSuccess; 
+		}
+		
 		for (int i = 0, n = selKeyId.length; i < n; i++) {
-			if (!_ruleUtil.exeUpdate(funId, selKeyId[i], eventCode, userInfo)) {
+			if (!_ruleUtil.exeUpdate(lsRule, selKeyId[i], "", userInfo)) {
 				setMessage(JsMessage.getValue("sqlrulebo.updateerror"));
 				return _returnFaild;
 			}

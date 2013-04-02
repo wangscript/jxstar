@@ -5,6 +5,7 @@ import java.util.Map;
 import org.jxstar.control.action.RequestContext;
 import org.jxstar.dao.DaoParam;
 import org.jxstar.service.BusinessObject;
+import org.jxstar.service.util.ClusterUtil;
 import org.jxstar.util.DateUtil;
 import org.jxstar.util.MapUtil;
 import org.jxstar.util.config.SystemVar;
@@ -69,6 +70,11 @@ public class LoginLogBO extends BusinessObject {
 		
 		//删除当前用户与修改退出日志
 		logout(userId, sessionId);
+		//如果是代理用户，则删除代理用户的登录信息
+		String proxyUserId = MapUtil.getValue(mpUser, "proxy_user_id");
+		if (proxyUserId.length() > 0) {
+			logout(proxyUserId, sessionId);
+		}
 		
 		return _returnSuccess;
 	}
@@ -102,6 +108,11 @@ public class LoginLogBO extends BusinessObject {
 		String sql = "delete from sys_user_login";
 		DaoParam param = _dao.createParam(sql);
 		_dao.update(param);
+		
+		//系统重启时删除所有遗漏操作
+		String sql1 = "delete from sys_doing";
+		DaoParam param1 = _dao.createParam(sql1);
+		_dao.update(param1);
 	}
 	
 	//新增登录日志
@@ -130,8 +141,8 @@ public class LoginLogBO extends BusinessObject {
 		String deptName = mpUser.get("dept_name");
 		
 		String sql = "insert into sys_user_login(user_id, user_code, user_name, dept_id, dept_name, " +
-				"login_date, log_id, login_id, session_id, client_ip, client_agent) " +
-				"values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+				"login_date, log_id, login_id, session_id, client_ip, client_agent, server_name) " +
+				"values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
 		String loginId = KeyCreator.getInstance().createKey("sys_user_login");
 		DaoParam param = _dao.createParam(sql);
@@ -146,6 +157,7 @@ public class LoginLogBO extends BusinessObject {
 		param.addStringValue(sessionId);
 		param.addStringValue(clientIp);
 		param.addStringValue(userAgent);
+		param.addStringValue(ClusterUtil.getServerName());
 		
 		return _dao.update(param);
 	}
