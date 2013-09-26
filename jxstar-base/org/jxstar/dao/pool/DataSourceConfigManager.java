@@ -115,13 +115,26 @@ public class DataSourceConfigManager {
 		dsc.setJdbcUrl(jdbcUrl);
 		dsc.setUserName(userName);
 		dsc.setPassWord(passWord);
-		dsc.setMaxConNum("5");
-		dsc.setMaxWaitTime("5000");
-		dsc.setTranLevel("TRANSACTION_READ_COMMITTED");
-		dsc.setDataSourceType("self");
-		dsc.setJndiName("");	
 		dsc.setDbmsType(dbmsType);
 		
 		_dsConfigMap.put(dsc.getDataSourceName(), dsc);
+	}
+	
+	/**
+	 * 添加外部数据源信息
+	 * @param dsc
+	 */
+	public void addDataSourceConfig(DataSourceConfig dsc) {
+		if (dsc == null) return;
+		String sourceName = dsc.getDataSourceName();
+		
+		if (_dsConfigMap.containsKey(sourceName)) {
+			//删除数据源定义信息
+			_dsConfigMap.remove(sourceName);
+			//删除数据连接
+			PooledConnection.getInstance().delConnection(sourceName);
+		} else {
+			_dsConfigMap.put(sourceName, dsc);
+		}
 	}
 }

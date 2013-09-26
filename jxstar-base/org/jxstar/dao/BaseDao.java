@@ -130,11 +130,7 @@ public class BaseDao {
 				con = PooledConnection.getInstance().getConnection(dataSource);
 				if (con != null) con.setAutoCommit(true);
 			}
-			
-			if (con == null){
-				_log.showWarn("connection is null sql=" + sql);
-				return false;
-			}
+			if (con == null) return false;
 
 			ps = con.prepareStatement(sql);
 			if (!lsValue.isEmpty()) {
@@ -154,18 +150,21 @@ public class BaseDao {
 				}
 			}
 			
-			DaoUtil.showUpdateTime(curTime, sql);
+			DaoUtil.showUpdateTime(curTime, param);
 		} catch(TransactionException e) {
+			param.setError(e.getMessage());
 			DaoUtil.closeTranObj(tranObj);
-			DaoUtil.showException(e, sql);
+			DaoUtil.showException(e, param);
 			return false;
 		} catch (SQLException e) {
+			param.setError(e.getMessage());
 			DaoUtil.closeTranObj(tranObj);
-			DaoUtil.showException(e, sql);
+			DaoUtil.showException(e, param);
 			return false;
 		} catch (Exception e) {
+			param.setError(e.getMessage());
 			DaoUtil.closeTranObj(tranObj);
-			DaoUtil.showException(e, sql);
+			DaoUtil.showException(e, param);
 			return false;
 		} finally {
 			try {
@@ -179,6 +178,7 @@ public class BaseDao {
 					con = null;
 				}
 			} catch (SQLException e) {
+				param.setError(e.getMessage());
 				_log.showError(e);
 			}
 			
@@ -256,11 +256,7 @@ public class BaseDao {
 				con = PooledConnection.getInstance().getConnection(dataSource);
 				if (con != null) con.setAutoCommit(true);
 			}
-			
-			if (con == null) {
-				_log.showWarn("connection is null sql=" + sql);
-				return lsRet;
-			}
+			if (con == null) return lsRet;
 			
 			ps = con.prepareStatement(sql);
 			if (!lsValue.isEmpty()) {
@@ -269,22 +265,30 @@ public class BaseDao {
 
 			long curTime = System.currentTimeMillis();
 			rs = ps.executeQuery();
-			DaoUtil.showQueryTime(curTime, sql);
+			DaoUtil.showQueryTime(curTime, param);
 			
+			List<String> hcs = param.getHideCols();
 			//结果集转换为List对象
-			lsRet = DaoUtil.getRsToList(rs, recNum);
+			lsRet = DaoUtil.getRsToList(rs, recNum, hcs);
+			//取字段元数据
+			if (param.isUseFieldData()) {
+				param.setFieldData(DaoUtil.getRsToCol(rs));
+			}
 			
 			//如果不执行提交方法，在非事务环境中会存在连接泄露
+			//MySQL数据库连接总是出现断开的连接就是因为此造成
 			if (param.isUseTransaction()) {
 				tranObj.commit();
 			}
 		} catch(SQLException e) {
+			param.setError(e.getMessage());
 			DaoUtil.closeTranObj(tranObj);
-			DaoUtil.showException(e, sql);
+			DaoUtil.showException(e, param);
 			return lsRet;
 		} catch (Exception e) {
+			param.setError(e.getMessage());
 			DaoUtil.closeTranObj(tranObj);
-			DaoUtil.showException(e, sql);
+			DaoUtil.showException(e, param);
 			return lsRet;
 		} finally {
 			try {
@@ -300,6 +304,7 @@ public class BaseDao {
 					con = null;
 				}
 			} catch (SQLException e) {
+				param.setError(e.getMessage());
 				_log.showError(e);
 			}
 		}

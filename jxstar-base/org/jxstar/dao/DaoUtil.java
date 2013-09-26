@@ -19,7 +19,6 @@ import java.util.Map;
 
 import org.jxstar.dao.transaction.TransactionException;
 import org.jxstar.dao.transaction.TransactionObject;
-import org.jxstar.util.ArrayUtil;
 import org.jxstar.util.StringUtil;
 import org.jxstar.util.config.SystemVar;
 import org.jxstar.util.factory.FactoryUtil;
@@ -35,34 +34,28 @@ public class DaoUtil {
 	private static Log _log = Log.getInstance();
 	
 	/**
-	 * 获取结果集中的字段名。
+	 * 获取结果集中的字段信息，Map中的字段有：fieldname, datatype, length, precision, scale
 	 * 
 	 * @param rs -- 结果集
 	 * @return List
 	 * @throws SQLException
 	 */
-	public static List<String> getRsToColName(ResultSet rs) throws SQLException {
-		if (rs == null) {
-			throw new SQLException(
-					"getRsToColName(): ResultSet param is null! ");
-		}
-
-		List<String> lsRet = FactoryUtil.newList();
+	public static List<Map<String,String>> getRsToCol(ResultSet rs) throws SQLException {
+		List<Map<String,String>> lsRet = FactoryUtil.newList();
 
 		// 取得结果集的单元信息
-		try {
-			ResultSetMetaData rsmd = rs.getMetaData();
-			int columnNum = rsmd.getColumnCount();
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columnNum = rsmd.getColumnCount();
 
-			for (int i = 1; i <= columnNum; i++) {
-				lsRet.add(rsmd.getColumnLabel(i).toLowerCase());
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-			throw new SQLException("getRsToColName(): " + e.toString());
-		} catch (Exception e) {
-			e.printStackTrace();
-			throw new SQLException("getRsToColName(): " + e.toString());
+		for (int i = 1; i <= columnNum; i++) {
+			Map<String,String> mp = FactoryUtil.newMap();
+			mp.put("fieldname", rsmd.getColumnLabel(i).toLowerCase());
+			mp.put("datatype", rsmd.getColumnTypeName(i).toLowerCase());
+			mp.put("length", Integer.toString(rsmd.getColumnDisplaySize(i)));
+			mp.put("precision", Integer.toString(rsmd.getPrecision(i)));
+			mp.put("scale", Integer.toString(rsmd.getScale(i)));
+			
+			lsRet.add(mp);
 		}
 
 		return lsRet;
@@ -73,10 +66,12 @@ public class DaoUtil {
 	 * 
 	 * @param rs -- 结果集
 	 * @param recNum -- 控制取recNum条记录，如果<=0，则不限制数量
+	 * @param hideCols -- 需要隐藏数据的列
 	 * @return List
 	 * @throws SQLException
 	 */
-	public static List<Map<String,String>> getRsToList(ResultSet rs, int recNum) throws SQLException {
+	public static List<Map<String,String>> getRsToList(ResultSet rs, int recNum, 
+			List<String> hideCols) throws SQLException {
 		if (rs == null) {
 			throw new SQLException("getRsToList(): ResultSet param is null! ");
 		}
@@ -84,54 +79,50 @@ public class DaoUtil {
 		List<Map<String,String>> lsRet = FactoryUtil.newList();
 		Map<String,String> map = null;
 
-		try {
-			// 取得结果集的单元信息
-			ResultSetMetaData rsmd = rs.getMetaData();
-			int columnNum = rsmd.getColumnCount();
-			//允许查询输出最多数据条数
-			String sMaxNum = SystemVar.getValue("db.query.maxnum", "50000");
-			int count = 0, maxNum = Integer.parseInt(sMaxNum);
+		// 取得结果集的单元信息
+		ResultSetMetaData rsmd = rs.getMetaData();
+		int columnNum = rsmd.getColumnCount();
+		//允许查询输出最多数据条数
+		String sMaxNum = SystemVar.getValue("db.query.maxnum", "50000");
+		int count = 0, maxNum = Integer.parseInt(sMaxNum);
 
-			// 列数为0,返回空的ArrayList
-			String strVal = null, strCol = null;
-			while (rs.next()) {
-				count++;
-				//用于控制取recNum条记录
-				if (recNum > 0 && count > recNum) break;
-				
-				if (count > maxNum) {
-					_log.showError("query data num more max [{0}]!!", maxNum);
-					break;
+		// 列数为0,返回空的ArrayList
+		String strVal = null, strCol = null;
+		while (rs.next()) {
+			count++;
+			//用于控制取recNum条记录
+			if (recNum > 0 && count > recNum) break;
+			
+			if (count > maxNum) {
+				_log.showError("query data num more max [{0}]!!", maxNum);
+				break;
+			}
+			
+			map = FactoryUtil.newMap();
+			for (int i = 1; i <= columnNum; i++) {
+				//由getColumnName改为getColumnLabel，DB2中必须用它取别名，其它数据库两者的值相同
+				strCol = rsmd.getColumnLabel(i).toLowerCase();
+				strVal = rs.getString(strCol);
+				if (strVal == null) strVal = "";
+				//隐藏此字段的值
+				if (hideCols != null && !hideCols.isEmpty()) {
+					if (hideCols.contains(strCol)) strVal = "";
 				}
 				
-				map = FactoryUtil.newMap();
-				for (int i = 1; i <= columnNum; i++) {
-					//由getColumnName改为getColumnLabel，DB2中必须用它取别名，其它数据库两者的值相同
-					strCol = rsmd.getColumnLabel(i).toLowerCase();
-					strVal = rs.getString(strCol);
-					if (strVal == null) strVal = "";
-					
-					//如果是日期类型的字段，转换为日期对象
-					if (rsmd.getColumnType(i) == java.sql.Types.DATE || 
-							rsmd.getColumnType(i) == java.sql.Types.TIMESTAMP) {
-						if (strVal.length() > 0) {
-							String strTmp[] = strVal.split("\\.");
-							if (strTmp.length == 2) {
-								strVal = strTmp[0];
-							}
+				//如果是日期类型的字段，转换为日期对象
+				if (rsmd.getColumnType(i) == java.sql.Types.DATE || 
+						rsmd.getColumnType(i) == java.sql.Types.TIMESTAMP) {
+					if (strVal.length() > 0) {
+						String strTmp[] = strVal.split("\\.");
+						if (strTmp.length == 2) {
+							strVal = strTmp[0];
 						}
 					}
-					
-					map.put(strCol, strVal);
 				}
-				lsRet.add(map);
+				
+				map.put(strCol, strVal);
 			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-			throw new SQLException("getRsToList(): " + e.toString());
-		} catch (Exception e) {
-			e.printStackTrace();
-			throw new SQLException("getRsToList(): " + e.toString());
+			lsRet.add(map);
 		}
 
 		return lsRet;
@@ -181,57 +172,49 @@ public class DaoUtil {
 			throw new SQLException("setPreStmParams(): PreparedStatement param is null! ");
 		}
 
-		try {
-			String strval = "";
-			String strtype = "";
+		String strval = "";
+		String strtype = "";
 
-			int icount = lsValue.size();
-			if (icount > lsType.size())
-				icount = lsType.size();
+		int icount = lsValue.size();
+		if (icount > lsType.size())
+			icount = lsType.size();
 
-			for (int i = 1; i <= icount; i++) {
-				strval = lsValue.get(i - 1);
-				strtype = lsType.get(i - 1);
+		for (int i = 1; i <= icount; i++) {
+			strval = lsValue.get(i - 1);
+			strtype = lsType.get(i - 1);
 
-				if (strtype.equalsIgnoreCase("string")) {
-					if ((null != strval) && (strval.length() > 0)) {
-						aps.setString(i, strval);
+			if (strtype.equalsIgnoreCase("string")) {
+				if ((null != strval) && (strval.length() > 0)) {
+					aps.setString(i, strval);
+				} else {
+					aps.setNull(i, java.sql.Types.VARCHAR);
+				}
+			} else if (strtype.equalsIgnoreCase("date")) {
+				if ((null != strval)
+						&& (!strval.trim().equalsIgnoreCase("null"))
+						&& (strval.trim().length() > 0)) {
+					if (strval.length() <= 10) {
+						aps.setDate(i, Date.valueOf(strval));
 					} else {
-						aps.setNull(i, java.sql.Types.VARCHAR);
+						aps.setTimestamp(i, Timestamp.valueOf(strval));
 					}
-				} else if (strtype.equalsIgnoreCase("date")) {
-					if ((null != strval)
-							&& (!strval.trim().equalsIgnoreCase("null"))
-							&& (strval.trim().length() > 0)) {
-						if (strval.length() <= 10) {
-							aps.setDate(i, Date.valueOf(strval));
-						} else {
-							aps.setTimestamp(i, Timestamp.valueOf(strval));
-						}
-					} else {
-						aps.setNull(i, java.sql.Types.DATE);
-					}
-				} else if ((strtype.equalsIgnoreCase("double"))
-						|| (strtype.equalsIgnoreCase("float"))) {
-					if ((null != strval) && (strval.length() > 0)) {
-						aps.setDouble(i, Double.parseDouble(strval));
-					} else {
-						aps.setNull(i, java.sql.Types.DOUBLE);
-					}
-				} else if (strtype.equalsIgnoreCase("int")) {
-					if ((null != strval) && (strval.length() > 0)) {
-						aps.setInt(i, Integer.parseInt(strval));
-					} else {
-						aps.setNull(i, java.sql.Types.INTEGER);
-					}
+				} else {
+					aps.setNull(i, java.sql.Types.DATE);
+				}
+			} else if ((strtype.equalsIgnoreCase("double"))
+					|| (strtype.equalsIgnoreCase("float"))) {
+				if ((null != strval) && (strval.length() > 0)) {
+					aps.setDouble(i, Double.parseDouble(strval));
+				} else {
+					aps.setNull(i, java.sql.Types.DOUBLE);
+				}
+			} else if (strtype.equalsIgnoreCase("int")) {
+				if ((null != strval) && (strval.length() > 0)) {
+					aps.setInt(i, Integer.parseInt(strval));
+				} else {
+					aps.setNull(i, java.sql.Types.INTEGER);
 				}
 			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-			throw new SQLException("setPreStmParams(): " + e.toString());
-		} catch (Exception e) {
-			e.printStackTrace();
-			throw new SQLException("setPreStmParams(): " + e.toString());
 		}
 
 		return aps;
@@ -253,18 +236,10 @@ public class DaoUtil {
 			throw new SQLException("setOutStmParams(): CallableStatement param is null! ");
 		}
 
-		try {
-			for (int i = 1, n = lsOutType.size(); i <= n; i++) {
-				int itype = lsOutType.get(i - 1);
-				
-				aps.registerOutParameter(start+i, itype);
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-			throw new SQLException("setOutStmParams(): " + e.toString());
-		} catch (Exception e) {
-			e.printStackTrace();
-			throw new SQLException("setOutStmParams(): " + e.toString());
+		for (int i = 1, n = lsOutType.size(); i <= n; i++) {
+			int itype = lsOutType.get(i - 1);
+			
+			aps.registerOutParameter(start+i, itype);
 		}
 		
 		return aps;
@@ -284,20 +259,12 @@ public class DaoUtil {
 			throw new SQLException("setOutStmParams(): CallableStatement param is null! ");
 		}
 
-		try {
-			for (int i = 1; i <= typenum; i++) {
-				int index = start + i;
-				String value = aps.getString(index);
-				if (value == null) value = "";
-				
-				param.setOutValue(value);
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-			throw new SQLException("setOutStmParams(): " + e.toString());
-		} catch (Exception e) {
-			e.printStackTrace();
-			throw new SQLException("setOutStmParams(): " + e.toString());
+		for (int i = 1; i <= typenum; i++) {
+			int index = start + i;
+			String value = aps.getString(index);
+			if (value == null) value = "";
+			
+			param.setOutValue(value);
 		}
 	}
 	
@@ -305,18 +272,20 @@ public class DaoUtil {
 	 * ResultSet 转换为 JSON。
 	 * 
 	 * @param rs -- 结果集
+	 * @param cols -- 字段列，带表名
+	 * @param hideCols -- 隐藏数据的字段列，不带表名
 	 * @return String
 	 * @throws SQLException
 	 */
-	public static String getRsToJson(ResultSet rs, String[] astrCol) 
-		throws SQLException {
+	public static String getRsToJson(ResultSet rs, String[] cols, 
+			List<String> hideCols) throws SQLException {
 		if (rs == null) {
 			throw new SQLException("getRsToJson(): ResultSet param is null! ");
 		}
-		if (astrCol == null) {
-			throw new SQLException("getRsToJson(): astrCol param is null! ");
+		if (cols == null) {
+			throw new SQLException("getRsToJson(): cols param is null! ");
 		}
-		if (astrCol.length == 0) return "";
+		if (cols.length == 0) return "";
 		
 		//允许查询输出最多数据条数
 		String sMaxNum = SystemVar.getValue("db.query.maxnum", "50000");
@@ -326,72 +295,71 @@ public class DaoUtil {
 		ResultSetMetaData rsmd = rs.getMetaData();
 		//构建json对象
 		StringBuilder sbJson = new StringBuilder();
-		try {
-			String strVal = null;
-			while (rs.next()) {
-				count++;
-				if (count > maxNum) {
-					_log.showError("query data num more max [{0}]!!", maxNum);
-					break;
-				}
+		
+		String strVal = null;
+		String strCol = null;
+		while (rs.next()) {
+			count++;
+			if (count > maxNum) {
+				_log.showError("query data num more max [{0}]!!", maxNum);
+				break;
+			}
 
-				sbJson.append("{");
-				//组织一行数据
-				for (int i = 1, n = astrCol.length; i <= n; i++) {
-					strVal = rs.getString(i);
-					if (strVal == null) strVal = "";
-					
-					//如果是日期类型的字段，转换为日期对象
-					if (rsmd.getColumnType(i) == java.sql.Types.DATE || 
-							rsmd.getColumnType(i) == java.sql.Types.TIMESTAMP) {
-						if (strVal.length() == 0) {
-							strVal = "''";
-						} else {
-							//秒后可能会存在.0的字符
-							String strTmp[] = strVal.split("\\.");
-							if (strTmp.length == 2) {
-								strVal = strTmp[0];
-							}
-							
-							//约定日期格式：yyyy-mm-dd 时间戳格式：yyyy-mm-dd hh:mm:ss
-							String[] dt = strVal.split(" ");
-							String[] ds = dt[0].split("-");
-							
-							//月份值要减1
-							int y = Integer.parseInt(ds[0]);
-							int m = Integer.parseInt(ds[1])-1;
-							int d = Integer.parseInt(ds[2]);
-							
-							if (dt.length > 1) {
-							//TIMESTAMP类型
-								String[] ts = dt[1].split(":");
-								int hh = Integer.parseInt(ts[0]);
-								int mm = Integer.parseInt(ts[1]);
-								int ss = Integer.parseInt(ts[2]);
-								
-								strVal = "(new Date("+y+", "+m+", "+d+", "+hh+", "+mm+", "+ss+"))";
-							} else {
-							//DATE类型
-								strVal = "(new Date("+y+", "+m+", "+d+"))";
-							}
+			sbJson.append("{");
+			//组织一行数据
+			for (int i = 1, n = cols.length; i <= n; i++) {
+				strVal = rs.getString(i);
+				if (strVal == null) strVal = "";
+				//隐藏此字段的值
+				if (hideCols != null && !hideCols.isEmpty()) {
+					strCol = rsmd.getColumnLabel(i).toLowerCase();
+					if (hideCols.contains(strCol)) strVal = "";
+				}
+				
+				//如果是日期类型的字段，转换为日期对象
+				if (rsmd.getColumnType(i) == java.sql.Types.DATE || 
+						rsmd.getColumnType(i) == java.sql.Types.TIMESTAMP) {
+					if (strVal.length() == 0) {
+						strVal = "''";
+					} else {
+						//秒后可能会存在.0的字符
+						String strTmp[] = strVal.split("\\.");
+						if (strTmp.length == 2) {
+							strVal = strTmp[0];
 						}
 						
-						sbJson.append("'"+astrCol[i-1]+"'").append(":").append(strVal).append(",");
-					} else {
-						strVal = StringUtil.strForJson(strVal);
-	
-						sbJson.append("'"+astrCol[i-1]+"'").append(":'").append(strVal).append("',");
+						//约定日期格式：yyyy-mm-dd 时间戳格式：yyyy-mm-dd hh:mm:ss
+						String[] dt = strVal.split(" ");
+						String[] ds = dt[0].split("-");
+						
+						//月份值要减1
+						int y = Integer.parseInt(ds[0]);
+						int m = Integer.parseInt(ds[1])-1;
+						int d = Integer.parseInt(ds[2]);
+						
+						if (dt.length > 1) {
+						//TIMESTAMP类型
+							String[] ts = dt[1].split(":");
+							int hh = Integer.parseInt(ts[0]);
+							int mm = Integer.parseInt(ts[1]);
+							int ss = Integer.parseInt(ts[2]);
+							
+							strVal = "(new Date("+y+", "+m+", "+d+", "+hh+", "+mm+", "+ss+"))";
+						} else {
+						//DATE类型
+							strVal = "(new Date("+y+", "+m+", "+d+"))";
+						}
 					}
-				}
+					
+					sbJson.append("'"+cols[i-1]+"'").append(":").append(strVal).append(",");
+				} else {
+					strVal = StringUtil.strForJson(strVal);
 
-				sbJson.append("},\n");
+					sbJson.append("'"+cols[i-1]+"'").append(":'").append(strVal).append("',");
+				}
 			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-			throw new SQLException("getRsToList(): " + e.toString());
-		} catch (Exception e) {
-			e.printStackTrace();
-			throw new SQLException("getRsToList(): " + e.toString());
+
+			sbJson.append("},\n");
 		}
 		
 		String retJson = sbJson.toString();
@@ -409,9 +377,9 @@ public class DaoUtil {
 	 * 打印查询时间，并打印超长时间的SQL。
 	 * 
 	 * @param long			开始时间
-	 * @param String		执行的SQL
+	 * @param DaoParam		执行的SQL
 	 */
-	public static void showUpdateTime(long startTime, String sql) {
+	public static void showUpdateTime(long startTime, DaoParam param) {
 		long curQueryTime = System.currentTimeMillis() - startTime;
 		//是否显示所有查询时间
 		String isShow = SystemVar.getValue("db.show.querytime");
@@ -422,9 +390,13 @@ public class DaoUtil {
 		//查询超时提醒时间
 		String maxTime = SystemVar.getValue("db.max.querytime", "5000");
 		if (curQueryTime > Integer.parseInt(maxTime)) {
-			StringBuilder sbError = new StringBuilder();
-			sbError.append("update time = " + curQueryTime + "; update time out sql = " + sql);
-			_log.showWarn(sbError.toString());
+			StringBuilder sb = new StringBuilder();
+			sb.append("\nupdate time = ").append(curQueryTime);
+			sb.append("\nupdate time exe_sql = ").append(param.getSql());
+			sb.append("\nupdate time where_type = ").append(param.strType());
+			sb.append("\nupdate time where_value = ").append(param.strValue());
+			
+			_log.showError(sb.toString());
 		}
 	}
 	
@@ -432,9 +404,9 @@ public class DaoUtil {
 	 * 打印查询时间，并打印超长时间的SQL。
 	 * 
 	 * @param long			开始时间
-	 * @param String		执行的SQL
+	 * @param DaoParam		执行的SQL
 	 */
-	public static void showQueryTime(long startTime, String sql) {
+	public static void showQueryTime(long startTime, DaoParam param) {
 		long curQueryTime = System.currentTimeMillis() - startTime;
 		//是否显示所有查询时间
 		String isShow = SystemVar.getValue("db.show.querytime", "0");
@@ -445,9 +417,13 @@ public class DaoUtil {
 		//查询超时提醒时间
 		String maxTime = SystemVar.getValue("db.max.querytime", "5000");
 		if (curQueryTime > Integer.parseInt(maxTime)) {
-			StringBuilder sbError = new StringBuilder();
-			sbError.append("query time = " + curQueryTime + "; query time out sql = " + sql);
-			_log.showWarn(sbError.toString());
+			StringBuilder sb = new StringBuilder();
+			sb.append("\nquery time = ").append(curQueryTime);
+			sb.append("\nquery time exe_sql = ").append(param.getSql());
+			sb.append("\nquery time where_type = ").append(param.strType());
+			sb.append("\nquery time where_value = ").append(param.strValue());
+			
+			_log.showError(sb.toString());
 		}
 	}	
 	
@@ -467,13 +443,12 @@ public class DaoUtil {
 			 isShow.equals("2") && type.equals("2"));	//只显示更新SQL
 		if (!valid) return;
 		
-		String sql = param.getSql();
-		String[] vals = ArrayUtil.listToArray(param.getValue());
-		String value =  ArrayUtil.arrayToString(vals);
-		
 		StringBuilder sb = new StringBuilder();
-		sb.append("ThreadId=").append(Thread.currentThread().hashCode()).append(";\nSQL=");
-		sb.append(sql).append(";\nPARAM=").append(value).append("\n");
+		sb.append("\nthreadid = ").append(Thread.currentThread().hashCode());
+		sb.append("\nexe_sql = ").append(param.getSql());
+		sb.append("\nwhere_type = ").append(param.strType());
+		sb.append("\nwhere_value = ").append(param.strValue());
+		
 		_log.showError(sb.toString());
 	}
 	
@@ -481,12 +456,15 @@ public class DaoUtil {
 	 * 显示异常信息。
 	 * 
 	 * @param Exception		异常对象
-	 * @param String		执行的SQL
+	 * @param DaoParam		执行的SQL
 	 */
-	public static void showException(Exception e, String sql) {
-		StringBuilder sbError = new StringBuilder();
-		sbError.append("SQLException: Excute SQL = " + sql);
-		_log.showWarn(sbError.toString());
+	public static void showException(Exception e, DaoParam param) {
+		StringBuilder sb = new StringBuilder();
+		sb.append("\nexe_sql = ").append(param.getSql());
+		sb.append("\nwhere_type = ").append(param.strType());
+		sb.append("\nwhere_type = ").append(param.strValue());
+		
+		_log.showError(sb.toString());
 		_log.showError(e);
 	}
 	

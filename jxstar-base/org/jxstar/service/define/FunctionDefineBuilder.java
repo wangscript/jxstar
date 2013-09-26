@@ -129,7 +129,8 @@ public class FunctionDefineBuilder {
 			StringBuilder sql = new StringBuilder("select ");
 			for (int i = 0, n = lsSums.size(); i < n; i++) {
 				String col = lsSums.get(i);
-				sql.append("sum("+col+"),");//不采用别名，是因为table__field作为别名时，长度超过30，在oracle中会报错
+				String colname = StringUtil.getNoTableCol(col);
+				sql.append("sum("+col+") as "+ colname +",");//oracle中的别名长度不能超过30，添加别名方便过滤需要隐藏的字段
 			}
 			 String ssql = sql.substring(0, sql.length()-1);
 			 ssql += " " + MapUtil.getValue(mpFun, "from_sql");

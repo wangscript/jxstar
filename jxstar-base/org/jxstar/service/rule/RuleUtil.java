@@ -204,7 +204,8 @@ public class RuleUtil {
 			List<Map<String, String>> srcListData = _dao.query(srcParam);
 			if (srcListData.isEmpty()) {
 				_log.showWarn("execute update src data list is empty!");
-				return true;
+				//不处理来源数据为空的情况
+				continue;
 			}
 			
 			//解析目标SQL中的常量

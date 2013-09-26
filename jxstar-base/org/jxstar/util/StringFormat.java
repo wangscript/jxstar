@@ -227,13 +227,9 @@ public class StringFormat {
 	 * @return
 	 */
 	public static String doubleFormat(double num){
-		 String format = "###";
-		 if(Double.toString(num).indexOf(".") > -1){
-		 	format = "###.00";
-		 }
-		 	
-		 DecimalFormat decformat = new DecimalFormat(format);
-		 return decformat.format(num);
+		//预留足够的小数位
+		DecimalFormat decformat = new DecimalFormat("###.#########");
+		return decformat.format(num);
 	}
 	
 	//添加连续的小数位格式化字符，#表示无数字则不显示，0表示无数字显示0，如：

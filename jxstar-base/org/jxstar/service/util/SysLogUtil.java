@@ -69,6 +69,15 @@ public class SysLogUtil {
 		String isWrite = SystemVar.getValue("sys.log.start", "0");
 		if (!isWrite.equals("1")) return false;
 		
+		//启用操作日志的功能ID，用,,分隔
+		String logFunIds = SystemVar.getValue("sys.log.start.funid");
+		if (logFunIds.length() > 0) {
+			//如果当前功能ID不在设置范围内，则不处理日志
+			if (logFunIds.indexOf(","+funId+",") < 0) {
+				return false;
+			}
+		}
+		
 		//是否是记录日志的事件代码
 		String logEvents = SystemVar.getValue("sys.log.events");
 		if (logEvents.indexOf(eventCode) < 0) return false;

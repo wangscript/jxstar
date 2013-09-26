@@ -17,10 +17,10 @@ import org.jxstar.dao.JsonDao;
 import org.jxstar.dao.util.DBTypeUtil;
 import org.jxstar.service.BoException;
 import org.jxstar.service.BusinessObject;
-import org.jxstar.service.define.DefineName;
 import org.jxstar.service.define.FunctionDefine;
 import org.jxstar.service.define.FunctionDefineManger;
 import org.jxstar.service.util.PageSQL;
+import org.jxstar.service.util.SysHideField;
 import org.jxstar.service.util.WhereUtil;
 import org.jxstar.util.ArrayUtil;
 import org.jxstar.util.MapUtil;
@@ -82,6 +82,12 @@ public class GridQuery extends BusinessObject {
 		} else {
 			//取功能定义查询where
 			try {
+				//如果是选择或导入页面类型，不处理归档
+				if (pagetype.equals("combogrid") || 
+						pagetype.equals("selgrid") || pagetype.equals("import")) {
+					querytype = "1";//标记为高级查询，不处理归档
+				}
+				
 				where = WhereUtil.queryWhere(funid, userid, wheresql, querytype);
 			} catch (BoException e) {
 				setMessage(e.getMessage());
@@ -156,6 +162,10 @@ public class GridQuery extends BusinessObject {
 		_log.showDebug("gridquery allsql:" + pagesql);
 		_log.showDebug("gridquery wheretype:" + wheretype);
 		_log.showDebug("gridquery wherevalue:" + wherevalue);
+		
+		//查询是否有隐藏字段设置
+		List<String> hideCols = SysHideField.getHideCols(userid, funid);
+		if (!hideCols.isEmpty()) param.setHideCols(hideCols);
 		
 		//查询页面数据
 		JsonDao jsonDao = JsonDao.getInstance();

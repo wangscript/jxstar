@@ -96,20 +96,21 @@ public class JsonDao {
 
 			long curTime = System.currentTimeMillis();
 			rs = ps.executeQuery();
-			DaoUtil.showQueryTime(curTime, sql);
+			DaoUtil.showQueryTime(curTime, param);
 			
+			List<String> hcs = param.getHideCols();
 			//结果集转换为Json对象字符串
-			retJson = DaoUtil.getRsToJson(rs, cols);
+			retJson = DaoUtil.getRsToJson(rs, cols, hcs);
 			
 			//由于查询操作的connection需要释放，所以执行提交操作
 			tranObj.commit();
 		} catch(SQLException e) {
 			DaoUtil.closeTranObj(tranObj);
-			DaoUtil.showException(e, sql);
+			DaoUtil.showException(e, param);
 			return null;
 		} catch (Exception e) {
 			DaoUtil.closeTranObj(tranObj);
-			DaoUtil.showException(e, sql);
+			DaoUtil.showException(e, param);
 			return null;
 		} finally {
 			try {

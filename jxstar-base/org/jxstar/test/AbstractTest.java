@@ -41,6 +41,9 @@ public class AbstractTest {
         String logFile = "conf/log.properties";
         Log.getInstance().init(classPath, logFile);
         
+        //设置测试环境的标志
+        SystemVar.setValue("sys.jxstar.istest", "1");
+        
         //加载系统配置
         SystemInitUtil.initSystem(classPath, configFile, false);   
 	}
