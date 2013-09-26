@@ -150,9 +150,11 @@ public class WhereUtil {
 	 * @param funid -- 功能定义ID
 	 * @param userid -- 用户ID
 	 * @param basewhere -- 前台where
+	 * @param querytype -- 高级查询 1、普通查询 0
 	 * @return
 	 */
-	public static String systemWhere(String funid, String userid, String basewhere) throws BoException {
+	public static String systemWhere(String funid, String userid, 
+			String basewhere, String queryType) throws BoException {
 		if (userid == null || userid.length() == 0) {
 			throw new BoException(JsMessage.getValue("param.null.userid"));
 		}
@@ -182,7 +184,7 @@ public class WhereUtil {
 		//取归档where子句
 		String isArchive = mpFun.get("is_archive");
 		//普通查询加归档、高级查询不加归档
-		if (isArchive.equals("1") && auditCol.length() > 0) {
+		if (isArchive.equals("1") && auditCol.length() > 0 && !queryType.equals("1")) {
 			if (sbWhere.length() > 0) {
 				sbWhere.append(" and ");
 			}

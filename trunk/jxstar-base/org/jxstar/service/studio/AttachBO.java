@@ -220,11 +220,14 @@ public class AttachBO extends BusinessObject {
 		//如果保存的文件名与原文件名不同，则需要修改文件名
 		String saveName = file.getName();
 		if (!saveName.equals(orgName)) {
-			if (!updatePath(attachId, filePath+saveName)) {
+			if (!updatePath(attachId, saveName)) {//不保存filePath，没意义
 				setMessage(JsMessage.getValue("systembo.attachbo.savefileerror"));
 				return _returnFaild;
 			}
 		}
+		
+		//保存附件类型
+		saveType(attachId, requestContext);
 		
 		return _returnSuccess;
 	}
@@ -296,7 +299,7 @@ public class AttachBO extends BusinessObject {
 		param.addStringValue(dataFunId);
 		
 		param.addStringValue(funName);
-		param.addStringValue(attachPath);
+		param.addStringValue(fileName);//不保存attachPath，没意义
 		param.addDateValue(DateUtil.getTodaySec());
 		param.addStringValue(userName);
 		param.addStringValue(userId);
@@ -409,5 +412,18 @@ public class AttachBO extends BusinessObject {
 		param.addStringValue(userId);
 		
 		return _dao.queryMap(param);
+	}
+	
+	//保存附件类型；为了方便升级，此代码暂时不融入到insertRecord方法中
+	private boolean saveType(String attachId, RequestContext request) {
+		String typeData = request.getRequestValue("attach_type");
+		if (typeData.length() == 0) return true;
+		
+		String sql = "update sys_attach set attach_type = ? where attach_id = ?";
+		DaoParam param = _dao.createParam(sql);
+		param.addStringValue(typeData);
+		param.addStringValue(attachId);
+		
+		return _dao.update(param);
 	}
 }

@@ -132,7 +132,7 @@ public class AttachFieldBO extends BusinessObject {
 	}
 	
 	//查询指定字段的附件记录
-	private String queryAttachId(String tableName, String attachField, String dataId) {
+	public String queryAttachId(String tableName, String attachField, String dataId) {
 		String sql = "select attach_id from sys_attach where table_name = ? and attach_field = ? and data_id = ?";
 		DaoParam param = _dao.createParam(sql);
 		param.addStringValue(tableName);
@@ -146,7 +146,7 @@ public class AttachFieldBO extends BusinessObject {
 	}
 	
 	//更新业务表中附件字段的值
-	private boolean updateFieldValue(RequestContext requestContext) {
+	public boolean updateFieldValue(RequestContext requestContext) {
 		//上传附件的数据ID
 		String dataId = requestContext.getRequestValue("dataid");
 		//上传附件的功能ID

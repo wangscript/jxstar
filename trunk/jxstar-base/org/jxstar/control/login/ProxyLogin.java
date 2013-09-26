@@ -3,7 +3,6 @@
  */
 package org.jxstar.control.login;
 
-import java.io.IOException;
 import java.util.Calendar;
 import java.util.Map;
 
@@ -242,8 +241,8 @@ public class ProxyLogin {
 	private static void reponseOut(HttpServletResponse response, String text) {
 		try {
 			response.getWriter().write(text);
-		} catch (IOException e) {
-			e.printStackTrace();
+		} catch (Exception e) {
+			_log.showError(e);
 		}
 	}
 	

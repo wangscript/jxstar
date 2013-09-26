@@ -24,7 +24,7 @@ public class DataSourceConfig {
 	public static final String DSTYPE_APPLICATION = "context";
 	
 	//数据源类型
-	private String dataSourceType;	
+	private String dataSourceType = DSTYPE_SELF;	
 	//数据源描述
 	private String dataSourceDesc;
 	//数据源名
@@ -46,7 +46,7 @@ public class DataSourceConfig {
 	//获取连接的最大等待时间(ms)
 	private String maxWaitTime = "5000";
 	//获取连接的事务级别
-	private String tranLevel;
+	private String tranLevel = "TRANSACTION_READ_COMMITTED";
 	//数据库类型
 	private String dbmsType;
 	//是否检查连接有效性
@@ -55,7 +55,9 @@ public class DataSourceConfig {
 	private String validQuery = "";
 	//启用检查空闲连接的线程
 	private String validIdle = "false";
-	
+	//是否捕获异常
+	private boolean catchError = true;
+
 	public String toString() {
 		StringBuilder sbDBS = new StringBuilder("\n\t");
 			sbDBS.append("dataSourceType:" + dataSourceType + "\n\t");		
@@ -212,5 +214,13 @@ public class DataSourceConfig {
 
 	public void setValidIdle(String validIdle) {
 		this.validIdle = validIdle;
+	}
+	
+	public boolean isCatchError() {
+		return catchError;
+	}
+
+	public void setCatchError(boolean catchError) {
+		this.catchError = catchError;
 	}
 }

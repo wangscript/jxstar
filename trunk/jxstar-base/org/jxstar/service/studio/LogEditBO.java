@@ -38,12 +38,23 @@ public class LogEditBO extends BusinessObject {
 	 * @return
 	 */
 	public String formSave(RequestContext request) {
+		//是否启用数据修改日志
 		String logEdit = SystemVar.getValue("sys.log.edit", "0");
+		//是否只启用审批中数据修改日志
 		String editwf = SystemVar.getValue("sys.log.editwf", "0");
 		if (!logEdit.equals("1") && !editwf.equals("1")) return _returnSuccess;
 		
-		_log.showDebug("................formSave method starting!");
 		String funid = request.getRequestValue("funid");
+		//启用数据修改日志的功能ID，用,,分隔
+		String logFunIds = SystemVar.getValue("sys.log.edit.funid");
+		if (logFunIds.length() > 0) {
+			//如果当前功能ID不在设置范围内，则不处理修改日志
+			if (logFunIds.indexOf(","+funid+",") < 0) {
+				return _returnSuccess;
+			}
+		}
+		
+		_log.showDebug("................formSave method starting!");
 		Map<String,String> mpFun = _define.getFunData(funid);
 		String tableName = mpFun.get("table_name");
 		String funName = mpFun.get("fun_name");

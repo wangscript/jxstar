@@ -41,6 +41,64 @@ public class FileUtil {
 	}
 	
 	/**
+	 * 把来源文件拷贝到目标文件位置
+	 * @param srcFile -- 来源文件名
+	 * @param destFile -- 目标文件名
+	 * @param deleteSrc -- 是否删除来源文件
+	 * @return
+	 */
+	public static boolean moveFile(String srcFile, String destFile, boolean deleteSrc) {
+		File sf = null; 
+		File df = null;
+		FileInputStream ins = null;
+		FileOutputStream out = null;
+		try {			
+			//创建目标文件
+			df = new File(destFile);
+			
+			if (df.exists()) {
+				df.delete();
+			} else {
+				df.createNewFile();
+			}
+			//读取来源文件
+			sf = new File(srcFile);
+			
+			out = new FileOutputStream(df);
+			ins = new FileInputStream(sf);
+			
+			//取流中的数据
+			int len = 0;
+			byte[] buf = new byte[256];
+			while ((len = ins.read(buf, 0, 256)) > -1) {
+				out.write(buf, 0, len);
+			}
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+			return false;
+		} catch (IOException e) {
+			e.printStackTrace();
+			return false;
+		} finally {
+			try {
+				if (out != null) {
+					out.flush();
+					out.close();
+				}
+				if (ins != null) {
+					ins.close();
+					if (deleteSrc) sf.delete();
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+				return false;
+			}
+		}
+		
+		return true;
+	}
+	
+	/**
 	 * 采用GBK编码方式保存文件
 	 * @param fileName -- 文件名，含路径
 	 * @param content -- 文件内容

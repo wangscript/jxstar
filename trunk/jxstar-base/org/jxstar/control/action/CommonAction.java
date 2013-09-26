@@ -6,7 +6,6 @@
  */
 package org.jxstar.control.action;
 
-import java.io.IOException;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
@@ -28,7 +27,14 @@ public class CommonAction extends Action {
 	
 	public void execute(HttpServletRequest request,
 			HttpServletResponse response) {
-		ResponseContext responseContext = processAction(request, response);
+		ResponseContext responseContext = null;
+		try {//捕获所有异常，提高服务的稳定性
+			responseContext = processAction(request, response);
+		} catch (Exception e) {
+			_log.showError(e);
+			return;
+		}
+		
 
 		if (responseContext != null) {
 			//响应信息格式
@@ -47,8 +53,8 @@ public class CommonAction extends Action {
 			//反馈响应信息
 			try {
 				response.getWriter().write(reponseText);
-			} catch (IOException e) {
-				e.printStackTrace();
+			} catch (Exception e) {
+				_log.showError(e);
 			}
 		}
 	}

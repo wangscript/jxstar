@@ -129,6 +129,7 @@ public class GroupStatBO extends BusinessObject {
 		String dsname = mpFun.get("ds_name");
 		//构建查询参数对象
 		DaoParam param = new DaoParam();
+		param.setUseParse(true);//处理统计字段添加空值处理的函数
 		param.setSql(sbsel.toString());
 		param.setValue(wherevalue).setType(wheretype).setDsName(dsname);
 		
@@ -186,7 +187,7 @@ public class GroupStatBO extends BusinessObject {
 		for (int i = 0, n = fields.length; i < n; i++) {
 			//字段名中添加了表名，防止多表列同名
 			String colname = StringUtil.getNoTableCol(fields[i]);
-			sbfield.append("sum(" + fields[i] + ") as "+ colname +",");
+			sbfield.append("sum({ISNULL}(" + fields[i] + ", 0)) as "+ colname +",");
 		}
 		sbfield.append("count(*) as "+ RECORDNUM);
 		

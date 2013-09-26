@@ -88,8 +88,8 @@ public class SysDataManager {
 	private class SysDataValue {
 		//当前用户ID
 		private String _userId;
-		//当前用户不同功能ID的数据权限SQL
-		private Map<String,String> _mpWhere = FactoryUtil.newMap();
+		//当前用户不同功能ID的数据权限SQL，采用支持高并发的MAP对象。
+		private Map<String,String> _mpWhere = FactoryUtil.newConMap();
 		
 		public SysDataValue(String userId) {
 			_userId = userId;

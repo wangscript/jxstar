@@ -7,7 +7,7 @@
 package org.jxstar.dao;
 
 import java.util.List;
-
+import java.util.Map;
 
 import org.jxstar.dao.pool.DataSourceConfig;
 import org.jxstar.dao.util.SQLParseException;
@@ -30,12 +30,20 @@ public class DaoParam {
 	private boolean _useParse = false;
 	//是否支持公共事务
 	private boolean _useTransaction = true; 
+	//是否加载字段元数据
+	private boolean _useFieldData = false;
+	//返还错误信息
+	private String _error = "";
 	//执行SQL
 	private String _sql = "";
 	//参数类型
 	private List<String> _lsType = null;
 	//参数值
 	private List<String> _lsValue = null;
+	//不显示值的字段名，不带表名
+	private List<String> _hideCols = null;
+	//读取字段元数据
+	private List<Map<String,String>> _fieldData = null;
 	
 	public DaoParam() {
 		_lsType = FactoryUtil.newList();
@@ -116,6 +124,40 @@ public class DaoParam {
 	}
 	public List<String> getValue() {
 		return _lsValue;
+	}
+	
+	/**
+	 * 反馈参数数据类型，如：string;string;date
+	 * @return
+	 */
+	public String strType() {
+		if (_lsType == null || _lsType.isEmpty()) {
+			return "";
+		}
+		StringBuilder sb = new StringBuilder();
+		int cnt = _lsType.size();
+		for (int i = 0; i < cnt; i++) {
+			sb.append(_lsType.get(i));
+			if (i < cnt-1) sb.append(";");
+		}
+		return sb.toString();
+	}
+	
+	/**
+	 * 反馈参数数据值，如：1;abc;2013-09-10
+	 * @return
+	 */
+	public String strValue() {
+		if (_lsValue == null || _lsValue.isEmpty()) {
+			return "";
+		}
+		StringBuilder sb = new StringBuilder();
+		int cnt = _lsValue.size();
+		for (int i = 0; i < cnt; i++) {
+			sb.append(_lsValue.get(i));
+			if (i < cnt-1) sb.append(";");
+		}
+		return sb.toString();
 	}
 	
 	public DaoParam setDsName(String name) {
@@ -228,6 +270,87 @@ public class DaoParam {
 		_lsType.clear();
 		_lsValue.clear();
 		_dsName = "";
+		_error = "";
+		if (_hideCols != null) {
+			_hideCols.clear();
+		}
+		if (_fieldData != null) {
+			_fieldData.clear();
+		}
+		
 		return this;
+	}
+	
+	/*****************************扩展参数用法********************************/
+	
+	/**
+	 * 取不显示数据的字段名，不带表名
+	 * @return
+	 */
+	public List<String> getHideCols() {
+		if (_hideCols == null) {
+			_hideCols = FactoryUtil.newList();
+		}
+		return _hideCols;
+	}
+
+	/**
+	 * 设置不显示数据的字段名，不带表名
+	 * @param notDataCols
+	 */
+	public void setHideCols(List<String> hideCols) {
+		this._hideCols = hideCols;
+	}
+	
+	/**
+	 * 是否需要读取字段元数据，在查询数据时需要用。
+	 * @return
+	 */
+	public boolean isUseFieldData() {
+		return _useFieldData;
+	}
+	
+	/**
+	 * 外部用户使用。
+	 * @param useFieldData
+	 */
+	public void setUseFieldData(boolean useFieldData) {
+		_useFieldData = useFieldData;
+	}
+	
+	/**
+	 * 获取结果集中的字段信息，Map中的字段有：fieldname, datatype, length, precision, scale
+	 * @return
+	 */
+	public List<Map<String,String>> getFieldData() {
+		if (_fieldData == null) {
+			_fieldData = FactoryUtil.newList();
+		}
+		return _fieldData;
+	}
+	
+	/**
+	 * 设置字段元数据
+	 * @param fieldData
+	 * @return
+	 */
+	public List<Map<String,String>> setFieldData(List<Map<String,String>> fieldData) {
+		return _fieldData = fieldData;
+	}
+	
+	/**
+	 * 返还DAO执行的异常信息
+	 * @return
+	 */
+	public String getError() {
+		return _error;
+	}
+
+	/**
+	 * 设置DAO执行的异常信息
+	 * @param errorMsg
+	 */
+	public void setError(String msg) {
+		this._error = msg;
 	}
 }

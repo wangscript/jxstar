@@ -118,7 +118,7 @@ public class SqlRuleBO extends BusinessObject {
 			String[] selKeyId, Map<String,String> userInfo) {
 		if (funId == null || funId.length() == 0 ||
 				selKeyId == null || selKeyId.length == 0) {
-			setMessage(JsMessage.getValue("common.paramerror")  +"sdfs");
+			setMessage(JsMessage.getValue("common.paramerror"));
 			return _returnFaild;
 		}
 		_log.showDebug("------------sql rule update param funid="+funId+" eventcode="+eventCode+" selkeyid="+ArrayUtil.arrayToString(selKeyId));

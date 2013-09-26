@@ -72,13 +72,14 @@ public class PooledConnection {
 	}
 
 	/**
-	 * 获取指定数据源名的连接，
-	 * 返回的链接可能存在null值，使用时需要判断。
+	 * 获取指定数据源名的连接，返回的链接可能存在null值，使用时需要判断。
+	 * 去掉了synchronized关键字，没有意义，在多线程多数据源时，
+	 * 如果取某个数据源连接时间过长时，会严重影响取本地数据库连接的效率。
 	 * 
 	 * @param dsName -- 数据源名
 	 * @return
 	 */
-	public synchronized Connection getConnection(String dsName) {
+	public Connection getConnection(String dsName) {
 		//如果数据源名为空或default，则取系统设置的缺省数据源名
 		if (dsName == null || dsName.length() == 0 || dsName.equals("default")) {
 			dsName = DataSourceConfig.getDefaultName();
@@ -119,32 +120,35 @@ public class PooledConnection {
 	
 	/**
 	 * 从自建连接池中取连接。
+	 * 去掉了原来的queueConnect方法，在取不到连接时重复取5次，
+	 * 没有意义，1次取不到，取5次也没有反而造成性能问题；
+	 * 可以设置validTest、validQuery、validIdle解决问题。
 	 * 
 	 * @param DataSourceConfig	-- 数据源配置对象
 	 * @return
 	 */	
 	private Connection getConnectionFromSelf(DataSourceConfig dsConfig) {
 		Connection conn = null;
-		DataSource ds = createSelfDataSource(dsConfig); 
+		DataSource ds = createSelfDataSource(dsConfig);
+		boolean catchError = dsConfig.isCatchError();
 		
 		try {
 			conn = ds.getConnection();
 			//_log.showDebug("get connection is:" + conn);
-
-			if (conn == null || conn.isClosed()) {
-				conn = null;
-				conn = queueConnect(conn, ds);
-			}
 			
 			if (conn == null || conn.isClosed()) {
-				return null;	
+				String dsName = dsConfig.getDataSourceName();
+				_log.showError("datasource [{0}] get connection is null!", dsName);
+				return null;
 			}
 			
 			int iTranLevel = getTranLevelConstant(dsConfig.getTranLevel());
 			conn.setAutoCommit(false);
 			conn.setTransactionIsolation(iTranLevel);
 		} catch (SQLException e) {
-			_log.showError(e);
+			if (catchError) {
+				_log.showError(e);
+			}
 		}
 		
 		return conn;
@@ -179,11 +183,9 @@ public class PooledConnection {
 		//取缺省数据源时SystemVar还没有值，所以从server.xml中取值
 		String validTest = dsConfig.getValidTest();
 		String validQuery = dsConfig.getValidQuery();
-		if (validTest.equalsIgnoreCase("true")) {
-			_log.showDebug("...... pool test use query");
+		if (validTest.equalsIgnoreCase("true") && validQuery.length() > 0) {
+			_log.showDebug("pool test use query...");
 			ds.setTestOnBorrow(true);
-		}
-		if (validQuery.length() > 0) {
 			ds.setValidationQuery(validQuery);
 			ds.setValidationQueryTimeout(3);
 		}
@@ -191,7 +193,7 @@ public class PooledConnection {
 		//启用线程检查，mysql在数据库端会过期关闭连接可以启用
 		//开启此配置可以实现断开的连接自动恢复的效果
 		if (dsConfig.getValidIdle().equalsIgnoreCase("true")) {
-			_log.showDebug("...... pool idle valid thread started");
+			_log.showDebug("pool idle valid thread started...");
 			ds.setMinIdle(5);
 			ds.setTestWhileIdle(true);
 			
@@ -216,19 +218,17 @@ public class PooledConnection {
 	private Connection getConnectionFromContext(DataSourceConfig dsConfig) {
 		Connection conn = null;
 		String jndiName = dsConfig.getJndiName();
+		boolean catchError = dsConfig.isCatchError();
 		
 		try {
 			DataSource ds = (DataSource) _context.lookup(dsConfig.getJndiName());
 			
 			conn = ds.getConnection();
 			//_log.showDebug("getConnection: " + conn);
-
-			if (conn == null || conn.isClosed()) {
-				conn = null;
-				conn = queueConnect(conn, ds);
-			}
 			
 			if (conn == null || conn.isClosed()) {
+				String dsName = dsConfig.getDataSourceName();
+				_log.showError("datasource [{0}] get connection is null!", dsName);
 				return null;
 			}
 			
@@ -236,40 +236,17 @@ public class PooledConnection {
 			conn.setAutoCommit(false);
 			conn.setTransactionIsolation(iTranLevel);
 		} catch (NamingException e) {
-			_log.showError("error get jndi name is: " + jndiName);
-			_log.showError(e);			
-		} catch (SQLException e) {
-			_log.showError("error get jndi name is: " + jndiName);
-			_log.showError(e);
-		}
-
-		return conn;
-	}
-
-	/**
-	 * 多次获取数据库连接，避免有效连接数据库端已经断了
-	 * @param conn
-	 * @param ds
-	 * 
-	 * @return Connection
-	 */
-	private Connection queueConnect(Connection conn, DataSource ds) {
-		if (ds == null) return null;
-
-		try{
-			for (int i = 0; (conn == null || conn.isClosed()) && (i < 5); i++) {
-				try {
-					Thread.sleep(500);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-
-				conn = ds.getConnection();
+			if (catchError) {
+				_log.showError("error get jndi name is: " + jndiName);
+				_log.showError(e);
 			}
-		}catch(SQLException e){
-			_log.showError(e);
+		} catch (SQLException e) {
+			if (catchError) {
+				_log.showError("error get jndi name is: " + jndiName);
+				_log.showError(e);
+			}
 		}
-		
+
 		return conn;
 	}
 	
